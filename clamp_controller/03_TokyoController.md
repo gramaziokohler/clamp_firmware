@@ -1,4 +1,4 @@
-Tokyo Clamp
+# Tokyo Clamp Controller
 
 ## Wiring
 
@@ -120,8 +120,6 @@ According to some questionable source:
 Note: Nano Hardware SPI Pins: SPI: 10 (SS), 11 (MOSI), 12 (MISO), 13 (SCK). These should be followed.
 
 Note: Despite CC1101 requires VCC = 3.3V, the TELESKY modules I got cannot operate in 3.3V, it needs 5.0V. I do not have a spec sheet or the schematic, I suspect it has an onboard Voltage converter.
-
-
 
 ### Status Light
 
