@@ -22,14 +22,17 @@
 
 */
 
+// Visual Micro "Optional Sketch Book" location should be set to the root path of the repo
+// e.g. C:\Users\leungp\Documents\GitHub\clamp_firmware\
+
 // The include statements are all in <angle brackets> because compiler need to look in the include folder for these files.
 // For example "Double Quote" won't work for Encoder.h because it has folder structure in its nested imports.
 // All libraries should ideally be located in libraries include folder.
-// * ITJ libraries are developed in the integral_timber_joints project. Located in \integral_timber_joints\src_cpp\libraries
+// * clamp_firmware libraries are developed in this project. Located in \clamp_firmware\libraries
 
 #include <EEPROM.h>         // Arduino default library for accessing EEPROM
 
-#include <DCMotor.h>        // ITJ library
+#include <DCMotor.h>        // clamp_firmware library
 #include <Encoder.h>        // Encoder library from PJRC.COM, LLC - Paul Stoffregen http://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <MotorController.h>    //New Class in Development
 
