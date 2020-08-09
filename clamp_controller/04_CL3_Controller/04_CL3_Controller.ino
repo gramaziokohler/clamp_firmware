@@ -366,6 +366,21 @@ void run_command_handle(const char* command) {
         MotorController1.moveToPosition(target_position_step);
     }
 
+    if (*command == 'p') {
+        double max_power_level = atof(command + 1);
+        if (max_power_level >= 0.0 && max_power_level <= 100.0) {
+
+            Serial.print("Set Max Power Level: ");
+            Serial.println(max_power_level);
+            MotorController1.setMaxPower(max_power_level/100);
+        }
+        else {
+            Serial.print("Max Power must be between 0 to 100, received: ");
+            Serial.println(max_power_level);
+        }
+
+    }
+
     //if (*command == '+') {
     //    long target_position_step = MotorController1.currentPosition() + atol(command + 1);
     //    Serial.print("Increment Position:");
