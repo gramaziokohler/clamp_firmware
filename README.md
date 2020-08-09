@@ -36,8 +36,8 @@ Each actuator (**ClampController**) is capable of controlling up to 2 DC motors 
 List of Clamp Controller firmware documentations
 
 - 01_SerialCommandController (TODO: Create Doc)
-
-- [03_TokyoController (Detailed documentation)](clamp_controller\03_TokyoController.md)
+- [03_TokyoController (Detailed documentation)](clamp_controller/03_TokyoController.md)
+- [04_CL3_Controller (Detailed documentation)](clamp_controller/04_CL3_Controller.md)
 
 ### Wireless Communication (General Description)
 
