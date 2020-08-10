@@ -5,6 +5,7 @@
 
 
  This controller continues the development from 03_TokyoController
+ Persistent settings are added to reduce need of changing this code for different hardware config.
  The controller is finalized to include usability features and attempts to isolate functions into reusable classes.
 
  The controller can accept commands from USB Serial (\n termainated)
@@ -13,8 +14,13 @@
  ?              - Print out status
  g[position]    - move to a given position (step), can be positive or negative value.
  s              - immediately stop
- v[velocity]    - Set Velocity in (step/s)
- p[power]       - Set Maximum Power used in motor control. (range 0 to 100) (NEW)
+
+ o[offset-pos]	- Set Homed Offset (step) (persistent) (NEW) 
+ v[velocity]    - Set Velocity in (step/s) (persistent)
+ a[accel]		- Set Acceleration in (step/s^2) (persistent)
+ e[error]		- Set Error-To-Stop (steps) (persistent)
+ p[power]       - Set Maximum Power used in motor control. (range 0 to 100) (persistent) (NEW)
+
  r[message]     - Send radio message to master (default address '0') e.g. rHello\n
  f[0/1]			- Enable Disable Radio Fix
 
@@ -26,6 +32,7 @@
 
  The new feature in this controller include
  - Configurable max-motor-power.
+ - Persistent settings.
  - LED status light output.
 */
 
@@ -109,9 +116,11 @@ const double m1_kp = 0.005;                 // Tuning based on result from Motor
 const double m1_ki = 0.003;                 // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_ki = 0.200
 const double m1_kd = 0.0001;                // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_kd = 0.0002
 
-const double m1_accel = 5000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
-const int m1_error_to_stop = 200.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
-const double m1_home_position_step = -1650;
+const double default_velocity = 500;			// Conservative speed
+const double default_accel = 5000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
+const double default_error_to_stop = 200.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
+const double default_home_position_step = 0;
+const double default_power = 1.0;			// Default to full power
 const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
 
 // Settings for radio communications
@@ -128,7 +137,7 @@ constexpr byte radio_syncWord[2] = { 01, 27 };
 // Initialize motion control objects
 DCMotor Motor1(m1_driver_ena_pin, m1_driver_in1_pin, m1_driver_in2_pin);
 Encoder Encoder1(m1_encoder1_pin, m1_encoder2_pin);
-MotorController MotorController1(&Motor1, &Encoder1, m1_kp, m1_ki, m1_kd, m1_accel, motor_run_interval, m1_error_to_stop, false, false);
+MotorController MotorController1(&Motor1, &Encoder1, m1_kp, m1_ki, m1_kd, default_accel, motor_run_interval, default_error_to_stop, false, false);
 
 // Variables for serial communication
 byte incomingByte;
@@ -157,11 +166,11 @@ unsigned long profile_end_micros = 0;
 // the setup function runs once when you press reset or power the board
 void setup() {
 
+	//Load settings
+	loadSettings();
+
 	// Initialize Serial
 	bufferedSerial.serialInit();
-
-	// Initial Homing Parameters
-	MotorController1.setHomingParam(m1_home_pin, HIGH, m1_home_position_step);
 
 	// Initialize battery monitor pin
 	pinMode(battery_monitor_pin, INPUT);
@@ -192,6 +201,7 @@ void setup() {
 }
 
 // Routine to start Radio
+// Return true when startup is successful
 boolean RadioStartup() {
 	radio.init();
 	radio.setSyncWord(radio_syncWord[0], radio_syncWord[1]);
@@ -238,6 +248,46 @@ boolean RadioStartup() {
 	}
 
 }
+
+// Load persistent settings from EEPROM
+// This function must be run after MotorController is created
+void loadSettings() {
+	// Load homed position Setting - o
+	double home_position_step = 0;
+	EEPROM.get(10, home_position_step);
+	MotorController1.setHomingParam(m1_home_pin, HIGH, home_position_step);
+	// Load velocity Setting - v
+	double velocity = 0.0;
+	EEPROM.get(20, velocity);
+	MotorController1.setDefaultVelocity(velocity);
+	// Load accel Setting - a
+	double accel = 0.0;
+	EEPROM.get(30, accel);
+	MotorController1.setAcceleration(accel);
+	// Load error-to-stop  Setting
+	double errorToStop = 0.0;
+	EEPROM.get(40, errorToStop);
+	MotorController1.setErrorToStop(errorToStop);
+	// Load power Setting
+	double maxPower = 0.0;
+	EEPROM.get(50, maxPower);
+	MotorController1.setMaxPower(maxPower);
+}
+
+const int setting_addr_o = 10;
+const int setting_addr_v = 20;
+const int setting_addr_a = 30;
+const int setting_addr_e = 40;
+const int setting_addr_p = 50;
+
+void resetEEPROM() {
+	EEPROM.put(setting_addr_o, default_home_position_step); // Reset homed position Setting
+	EEPROM.put(setting_addr_v, default_velocity); // Reset velocity Setting
+	EEPROM.put(setting_addr_a, default_accel); // Reset accel Setting
+	EEPROM.put(setting_addr_e, default_error_to_stop); // Reset error-to-stop  Setting
+	EEPROM.put(setting_addr_p, default_power); // Reset power Setting
+}
+
 
 void loop() {
 	//The main loop implements quasi-time sharing task management.
@@ -352,21 +402,17 @@ int rssi(char raw) {
 // Input: command: pointer to a null terminated char array that holds the command string
 void run_command_handle(const char* command) {
 
+	if (*command == '?') {
+		Serial.println(get_current_status_string());
+	}
+	
+	// Action Command
+
 	if (*command == 'h') {
 		Serial.println("Command Home : Homing");
 		MotorController1.home(true, 1000);
 	}
 
-	if (*command == '?') {
-		Serial.println(get_current_status_string());
-	}
-
-	if (*command == 'v') {
-		double velocity = atof(command + 1);
-		Serial.print("Set Velocity: ");
-		Serial.println(velocity);
-		MotorController1.setDefaultVelocity(velocity);
-	}
 
 	if (*command == 'g') {
 		long target_position_step = atol(command + 1);
@@ -375,16 +421,55 @@ void run_command_handle(const char* command) {
 		MotorController1.moveToPosition(target_position_step);
 	}
 
+	if (*command == 's') {
+		Serial.println(F("Command s : Stop Now"));
+		MotorController1.stop();
+	}
+
+	// Setting Command
+
+	if (*command == 'o') {
+		double home_position_step = atof(command + 1);
+		Serial.print("Set Homed Position Offset:");
+		Serial.println(home_position_step);
+		MotorController1.setHomingParam(m1_home_pin, HIGH, home_position_step);
+		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
+	}
+
+	if (*command == 'v') {
+		double velocity = atof(command + 1);
+		Serial.print("Set Velocity: ");
+		Serial.println(velocity);
+		MotorController1.setDefaultVelocity(velocity);
+		EEPROM.put(setting_addr_v, velocity); // Save new settings to EEPROM
+	}
+
+	if (*command == 'a') {
+		double accel = atof(command + 1);
+		Serial.print("Set Acceleration: ");
+		Serial.println(accel);
+		MotorController1.setAcceleration(accel);
+		EEPROM.put(setting_addr_a, accel); // Save new settings to EEPROM
+	}
+
+	if (*command == 'e') {
+		double errorToStop = atof(command + 1);
+		Serial.print("Set Error-To-Stop: ");
+		Serial.println(errorToStop);
+		MotorController1.setErrorToStop(errorToStop);
+		EEPROM.put(setting_addr_e, errorToStop); // Save new settings to EEPROM
+	}
+
 	if (*command == 'p') {
 		double max_power_level = atof(command + 1);
 		if (max_power_level >= 0.0 && max_power_level <= 100.0) {
-
 			Serial.print("Set Max Power Level: ");
 			Serial.println(max_power_level);
 			MotorController1.setMaxPower(max_power_level / 100);
+			EEPROM.put(setting_addr_p, max_power_level / 100); // Save new settings to EEPROM
 		}
 		else {
-			Serial.print("Error: Max Power must be between 0 to 100, received: ");
+			Serial.print("Error: Max Power must be between 0.0 to 100.0, received: ");
 			Serial.println(max_power_level);
 		}
 
@@ -404,10 +489,6 @@ void run_command_handle(const char* command) {
 //    MotorController1.moveToPosition(target_position_step);
 //}
 
-	if (*command == 's') {
-		Serial.println(F("Command s : Stop Now"));
-		MotorController1.stop();
-	}
 
 	if (*command == 'f') {
 		if (*(command + 1) == '0') {
@@ -418,8 +499,6 @@ void run_command_handle(const char* command) {
 			Serial.println(F("Command f : Radio Fix Enabled"));
 			radio_fix_enabled = true;
 		}
-
-		MotorController1.stop();
 	}
 
 	// For testing

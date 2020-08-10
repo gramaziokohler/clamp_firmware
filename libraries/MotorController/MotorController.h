@@ -44,6 +44,16 @@ class MotorController {
         _pid->SetOutputLimits(-1.0 * abs(maxValue), abs(maxValue));
     }
 
+    // Sets the acceleration for movements
+    void setAcceleration(const double accelStepsPerSec) {
+        _accelStepsPerSecSq = accelStepsPerSec;
+    }
+
+    // Sets the error to stop for movements
+    void setErrorToStop(const double errorToStop) {
+        _errorToStop = errorToStop;
+    }
+
     // Sets the velocity for movements that uses the moveToPosition(const double target_position_step) witout velocity
     void setDefaultVelocity(const double defaultVelocityStepsPerSec) {
         _defaultVelocityStepsPerSec = defaultVelocityStepsPerSec;
@@ -261,8 +271,8 @@ class MotorController {
     PID* _pid;
 
     // Settiing Variables
-    const double _errorToStop = 50;                  //TODO: Needs fine tune
-    const double _accelStepsPerSecSq = 1000;
+    double _errorToStop = 50;                  //TODO: Needs fine tune
+    double _accelStepsPerSecSq = 1000;
     double _defaultVelocityStepsPerSec = 500;
     const int _controller_run_interval_millis = 5;  //TODO: Needs fine tune
     const boolean _encoder_direction = true;        // In the case where Encoder direction do not agree with motor direction.
