@@ -16,6 +16,7 @@
  v[velocity]    - Set Velocity in (step/s)
  p[power]       - Set Maximum Power used in motor control. (range 0 to 100) (NEW)
  r[message]     - Send radio message to master (default address '0') e.g. rHello\n
+ f[0/1]			- Enable Disable Radio Fix
 
  The controller now uses a PID controller for the motors for position control
  to follow a motion profile.
@@ -146,6 +147,7 @@ CC1101 radio;
 uint8_t radio_partnum, radio_version, radio_marcstate;	// Stores the register values of the radio fetched at startup.
 unsigned long radio_last_receive_millis = 0;
 unsigned long radio_unfrozen_applied_millis = 0;
+boolean radio_fix_enabled = true;
 
 // Variables for profiling
 unsigned long profile_start_micros = 0;
@@ -403,7 +405,20 @@ void run_command_handle(const char* command) {
 //}
 
 	if (*command == 's') {
-		Serial.println(F("Command S : Stop Now"));
+		Serial.println(F("Command s : Stop Now"));
+		MotorController1.stop();
+	}
+
+	if (*command == 'f') {
+		if (*(command + 1) == '0') {
+			Serial.println(F("Command f : Radio Fix Disabled"));
+			radio_fix_enabled = false;
+		}
+		if (*(command + 1) == '1') {
+			Serial.println(F("Command f : Radio Fix Enabled"));
+			radio_fix_enabled = true;
+		}
+
 		MotorController1.stop();
 	}
 
@@ -443,20 +458,22 @@ void run_batt_monitor() {
 
 // Quick Fix to deal with radio occationally frozen.
 void run_radio_frozen_fix() {
-	{
-		const unsigned long RADIO_FROZEN_TIMEOUT = 3000;
-		// If radio do not receive anything within timeout, radio will reset itself into RX mode.
-		if (millis() > radio_last_receive_millis + RADIO_FROZEN_TIMEOUT) {
-			if (millis() > radio_unfrozen_applied_millis + RADIO_FROZEN_TIMEOUT) {
-				radio.setRxState();
-				//radio.flushRxFifo();
-				//radio.flushTxFifo();
-				Serial.println(F("RadioFixApplied"));
-				radio_unfrozen_applied_millis = millis();
-			}
-		}
+	// radio_frozen_fix can be turned off via serial command.
+	if (!radio_fix_enabled) return;
 
+	const unsigned long RADIO_FROZEN_TIMEOUT = 3000;
+	// If radio do not receive anything within timeout, radio will reset itself into RX mode.
+	if (millis() > radio_last_receive_millis + RADIO_FROZEN_TIMEOUT) {
+		if (millis() > radio_unfrozen_applied_millis + RADIO_FROZEN_TIMEOUT) {
+			radio.setRxState();
+			//radio.flushRxFifo();
+			//radio.flushTxFifo();
+			Serial.println(F("RadioFixApplied"));
+			radio_unfrozen_applied_millis = millis();
+		}
 	}
+
+	
 }
 
 // Status Reporting
