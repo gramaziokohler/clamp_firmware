@@ -20,6 +20,7 @@
  a[accel]		- Set Acceleration in (step/s^2) (persistent)
  e[error]		- Set Error-To-Stop (steps) (persistent)
  p[power]       - Set Maximum Power used in motor control. (range 0 to 100) (persistent) (NEW)
+ x[1]			- Reset settings stored in EEPROM to default values.
 
  r[message]     - Send radio message to master (default address '0') e.g. rHello\n
  f[0/1]			- Enable Disable Radio Fix
@@ -475,6 +476,13 @@ void run_command_handle(const char* command) {
 
 	}
 
+
+	if (*command == 'x') {
+		if (*(command + 1) == '1') {
+			Serial.println(F("EEPROM Settings reset to default"));
+			resetEEPROM();
+		}
+	}
 	//if (*command == '+') {
 //    long target_position_step = MotorController1.currentPosition() + atol(command + 1);
 //    Serial.print("Increment Position:");

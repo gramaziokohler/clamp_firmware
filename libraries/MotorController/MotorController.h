@@ -237,10 +237,12 @@ class MotorController {
         // Stopping condition when target is reached
         if (_currentDirection == EXTEND && _current_position_step >= _movement_target_position_step) {
             _target_reached = true;
+            //Serial.print("Target Reached");
             return true; //Break out of condition check.
         }
         if (_currentDirection == RETRACT && _current_position_step <= _movement_target_position_step) {
             _target_reached = true;
+            //Serial.print("Target Reached");
             return true; //Break out of condition check.
         }
 
@@ -248,6 +250,8 @@ class MotorController {
         _current_error = _current_position_step - _current_target_position_step;
         if (_current_error < -_errorToStop || _current_error > _errorToStop) {
             _target_reached = false;
+            //Serial.print("Stopped due to error: ");
+            //Serial.println(_current_error);
             return true; //Break out of condition check.
         }
 
