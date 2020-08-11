@@ -156,24 +156,24 @@ This can be used for changing settings easily without recompilation. Such as Rad
 
 Tested with battery attached, 5V is provided 7805 regulator.
 
-| SW1  | SW2  | SW3  | SW4  | Analog Reading <br />(Board 1) | Analog Reading <br />(Board 2) | Address |
-| ---- | ---- | ---- | ---- | ------------------------------ | ------------------------------ | ------- |
-| 0    | 0    | 0    | 0    | 0                              | 0                              | 0       |
-| 0    | 0    | 0    | 1    | 73                             | 74                             | 1       |
-| 0    | 0    | 1    | 0    | 140                            | 141                            | 2       |
-| 0    | 0    | 1    | 1    | 198                            | 197                            | 3       |
-| 0    | 1    | 0    | 0    | 258                            | 257                            | 4       |
-| 0    | 1    | 0    | 1    | 302                            | 301                            | 5       |
-| 0    | 1    | 1    | 0    | 341                            | 340                            | 6       |
-| 0    | 1    | 1    | 1    | 376                            | 375                            | 7       |
-| 1    | 0    | 0    | 0    | 431                            | 430                            | 8       |
-| 1    | 0    | 0    | 1    | 457                            | 457                            | 9       |
-| 1    | 0    | 1    | 0    | 482                            | 481                            | 10      |
-| 1    | 0    | 1    | 1    | 504                            | 503                            | 11      |
-| 1    | 1    | 0    | 0    | 529                            | 528                            | 12      |
-| 1    | 1    | 0    | 1    | 547                            | 546                            | 13      |
-| 1    | 1    | 1    | 0    | 564                            | 564                            | 14      |
-| 1    | 1    | 1    | 1    | 580                            | 580                            | 15      |
+| SW1  | SW2  | SW3  | SW4  | Analog Reading <br />(Board 1) | Analog Reading <br />(Board 2) | Address<br />(char) |
+| ---- | ---- | ---- | ---- | ------------------------------ | ------------------------------ | ------------------- |
+| 0    | 0    | 0    | 0    | 0                              | 0                              | 1                   |
+| 0    | 0    | 0    | 1    | 73                             | 74                             | 2                   |
+| 0    | 0    | 1    | 0    | 140                            | 141                            | 3                   |
+| 0    | 0    | 1    | 1    | 198                            | 197                            | 4                   |
+| 0    | 1    | 0    | 0    | 258                            | 257                            | 5                   |
+| 0    | 1    | 0    | 1    | 302                            | 301                            | 6                   |
+| 0    | 1    | 1    | 0    | 341                            | 340                            | 7                   |
+| 0    | 1    | 1    | 1    | 376                            | 375                            | 8                   |
+| 1    | 0    | 0    | 0    | 431                            | 430                            | 9                   |
+| 1    | 0    | 0    | 1    | 457                            | 457                            | 10                  |
+| 1    | 0    | 1    | 0    | 482                            | 481                            | 11                  |
+| 1    | 0    | 1    | 1    | 504                            | 503                            | 12                  |
+| 1    | 1    | 0    | 0    | 529                            | 528                            | 13                  |
+| 1    | 1    | 0    | 1    | 547                            | 546                            | 14                  |
+| 1    | 1    | 1    | 0    | 564                            | 564                            | 15                  |
+| 1    | 1    | 1    | 1    | 580                            | 580                            | 16                  |
 
 
 
@@ -307,3 +307,28 @@ Homing Switch Position have an approximately 93mm jaw opening. After homing the 
 ### Speed
 
 Speed from 1mm/s to 5mm/s had been tested to be stable and produce good torque.
+
+
+
+## Implemented Clamps
+
+| Address | Hardware | Encoder D2 | Encoder D3 |
+| ------- | -------- | ---------- | ---------- |
+| 1       | CL3      | Encoder F  |            |
+| 2       | CL3      |            |            |
+| 3       | CL3M     |            |            |
+| 4       | CL3M     |            |            |
+
+### Power Level / Force
+
+A quick test is performed on Clamp #1 with a power supply set at 14.4V (max.10A). This test try to relate the power settings to the amount of output force:
+
+| Power Percentage | Approximate Force (N) |
+| ---------------- | --------------------- |
+| 20               | 450                   |
+| 30               | 750                   |
+| 40               | 1140                  |
+| 50               | 1600                  |
+| 60               | 2030                  |
+
+Test was stopped after 60% due to the fear of destroying the hardware. Deflection of the clamp component is observed at 60%.
