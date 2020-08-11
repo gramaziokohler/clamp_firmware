@@ -158,6 +158,7 @@ uint8_t radio_partnum, radio_version, radio_marcstate;	// Stores the register va
 unsigned long radio_last_receive_millis = 0;
 unsigned long radio_unfrozen_applied_millis = 0;
 boolean radio_fix_enabled = true;
+boolean serial_printout_enabled = false;
 
 // Variables for profiling
 unsigned long profile_start_micros = 0;
@@ -183,9 +184,9 @@ void setup() {
 	// Read DPI Switch and set Radio Address
 	DipSwitch.init();
 	unsigned int DIPValue = DipSwitch.read();
-	Serial.print("(DIPValue = ");
+	Serial.print(F("(DIPValue = "));
 	Serial.print(DIPValue);
-	Serial.print(" This radio address is set to : char ");
+	Serial.print(F(" This radio address is set to : char "));
 	//Truth table please refer to 03_TokyoController.md
 	// SW1, SW2, SW3 = 0 results in address '1'
 	Serial.print(radio_selfAddress = (DIPValue >> 1) + 48 + 1);
@@ -199,6 +200,7 @@ void setup() {
 		Serial.println(F("(CC1101 Radio Startup Error Radio Abnormal)"));
 	}
 
+	Serial.println(F("Serial printout disabled by default, send any command via Serial to activiate it."));
 }
 
 // Routine to start Radio
@@ -314,7 +316,8 @@ void loop() {
 	// Handle serial command input
 	if (bufferedSerial.available()) {
 		const char* command = bufferedSerial.read();
-		Serial.println(command);
+		serial_printout_enabled = true;
+		Serial.println(command); //Echo the received command
 		run_command_handle(command);
 	}
 
@@ -404,26 +407,26 @@ int rssi(char raw) {
 void run_command_handle(const char* command) {
 
 	if (*command == '?') {
-		Serial.println(get_current_status_string());
+		if (serial_printout_enabled) Serial.println(get_current_status_string());
 	}
 	
 	// Action Command
 
 	if (*command == 'h') {
-		Serial.println("Command Home : Homing");
+		if (serial_printout_enabled) Serial.println(F("Command Home : Homing"));
 		MotorController1.home(true, 1000);
 	}
 
 
 	if (*command == 'g') {
 		long target_position_step = atol(command + 1);
-		Serial.print("Goto Position:");
-		Serial.println(target_position_step);
+		if (serial_printout_enabled) Serial.print(F("Goto Position:"));
+		if (serial_printout_enabled) Serial.println(target_position_step);
 		MotorController1.moveToPosition(target_position_step);
 	}
 
 	if (*command == 's') {
-		Serial.println(F("Command s : Stop Now"));
+		if (serial_printout_enabled) Serial.println(F("Command s : Stop Now"));
 		MotorController1.stop();
 	}
 
@@ -431,32 +434,32 @@ void run_command_handle(const char* command) {
 
 	if (*command == 'o') {
 		double home_position_step = atof(command + 1);
-		Serial.print("Set Homed Position Offset:");
-		Serial.println(home_position_step);
+		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
+		if (serial_printout_enabled) Serial.println(home_position_step);
 		MotorController1.setHomingParam(m1_home_pin, HIGH, home_position_step);
 		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
 	}
 
 	if (*command == 'v') {
 		double velocity = atof(command + 1);
-		Serial.print("Set Velocity: ");
-		Serial.println(velocity);
+		if (serial_printout_enabled) Serial.print(F("Set Velocity: "));
+		if (serial_printout_enabled) Serial.println(velocity);
 		MotorController1.setDefaultVelocity(velocity);
 		EEPROM.put(setting_addr_v, velocity); // Save new settings to EEPROM
 	}
 
 	if (*command == 'a') {
 		double accel = atof(command + 1);
-		Serial.print("Set Acceleration: ");
-		Serial.println(accel);
+		if (serial_printout_enabled) Serial.print(F("Set Acceleration: "));
+		if (serial_printout_enabled) Serial.println(accel);
 		MotorController1.setAcceleration(accel);
 		EEPROM.put(setting_addr_a, accel); // Save new settings to EEPROM
 	}
 
 	if (*command == 'e') {
 		double errorToStop = atof(command + 1);
-		Serial.print("Set Error-To-Stop: ");
-		Serial.println(errorToStop);
+		if (serial_printout_enabled) Serial.print(F("Set Error-To-Stop: "));
+		if (serial_printout_enabled) Serial.println(errorToStop);
 		MotorController1.setErrorToStop(errorToStop);
 		EEPROM.put(setting_addr_e, errorToStop); // Save new settings to EEPROM
 	}
@@ -464,14 +467,14 @@ void run_command_handle(const char* command) {
 	if (*command == 'p') {
 		double max_power_level = atof(command + 1);
 		if (max_power_level >= 0.0 && max_power_level <= 100.0) {
-			Serial.print("Set Max Power Level: ");
-			Serial.println(max_power_level);
+			if (serial_printout_enabled) Serial.print(F("Set Max Power Level: "));
+			if (serial_printout_enabled) Serial.println(max_power_level);
 			MotorController1.setMaxPower(max_power_level / 100);
 			EEPROM.put(setting_addr_p, max_power_level / 100); // Save new settings to EEPROM
 		}
 		else {
-			Serial.print("Error: Max Power must be between 0.0 to 100.0, received: ");
-			Serial.println(max_power_level);
+			if (serial_printout_enabled) Serial.print(F("Error: Max Power must be between 0.0 to 100.0, received: "));
+			if (serial_printout_enabled) Serial.println(max_power_level);
 		}
 
 	}
@@ -479,7 +482,7 @@ void run_command_handle(const char* command) {
 
 	if (*command == 'x') {
 		if (*(command + 1) == '1') {
-			Serial.println(F("EEPROM Settings reset to default"));
+			if (serial_printout_enabled) Serial.println(F("EEPROM Settings reset to default"));
 			resetEEPROM();
 		}
 	}
@@ -500,18 +503,18 @@ void run_command_handle(const char* command) {
 
 	if (*command == 'f') {
 		if (*(command + 1) == '0') {
-			Serial.println(F("Command f : Radio Fix Disabled"));
+			if (serial_printout_enabled) Serial.println(F("Command f : Radio Fix Disabled"));
 			radio_fix_enabled = false;
 		}
 		if (*(command + 1) == '1') {
-			Serial.println(F("Command f : Radio Fix Enabled"));
+			if (serial_printout_enabled) Serial.println(F("Command f : Radio Fix Enabled"));
 			radio_fix_enabled = true;
 		}
 	}
 
 	// For testing
 	if (*command == 'r') {
-		Serial.println(F("Command r : Send Test Radio Message to Master"));
+		if (serial_printout_enabled) Serial.println(F("Command r : Send Test Radio Message to Master"));
 		// Write Status Back
 		CCPACKET packet_reply;
 
@@ -521,8 +524,8 @@ void run_command_handle(const char* command) {
 		packet_reply.data[0] = radio_master_address;
 
 		auto result = radio.sendDataSpecial(packet_reply);
-		Serial.println((char*)&packet_reply.data);
-		if (result) Serial.println(F("Sent Succeed"));
+		if (serial_printout_enabled) Serial.println((char*)&packet_reply.data);
+		if (result && serial_printout_enabled) Serial.println(F("Sent Succeed"));
 
 	}
 }
@@ -555,7 +558,7 @@ void run_radio_frozen_fix() {
 			radio.setRxState();
 			//radio.flushRxFifo();
 			//radio.flushTxFifo();
-			Serial.println(F("RadioFixApplied"));
+			if (serial_printout_enabled) Serial.println(F("RadioFixApplied"));
 			radio_unfrozen_applied_millis = millis();
 		}
 	}
