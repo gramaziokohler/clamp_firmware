@@ -84,9 +84,19 @@ bool PID::Compute()
       //output += outputSum - kd * dInput;
       output += outputSum - kd * dInput / timeChange;
 
-	    if(output > outMax) output = outMax;
-      else if(output < outMin) output = outMin;
-	    *myOutput = output;
+      if (output > outMax) {
+          output = outMax;
+          isSaturated = true;
+      }
+      else if (output < outMin) {
+          output = outMin;
+          isSaturated = true;
+      }
+      else {
+          isSaturated = false;
+      }
+
+	  *myOutput = output;
 
       /*Remember some variables for next time*/
       lastInput = input;
@@ -226,4 +236,5 @@ double PID::GetKi(){ return  dispKi;}
 double PID::GetKd(){ return  dispKd;}
 int PID::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
 int PID::GetDirection(){ return controllerDirection;}
+bool PID::GetIsSaturated() { return  isSaturated; }
 

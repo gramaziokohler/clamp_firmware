@@ -23,6 +23,7 @@ GetKi	KEYWORD2
 GetKd	KEYWORD2
 GetMode	KEYWORD2
 GetDirection	KEYWORD2
+IsSaturated	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

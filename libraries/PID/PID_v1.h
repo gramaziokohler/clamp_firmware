@@ -59,6 +59,7 @@ class PID
 	double GetKd();						  // where it's important to know what is actually 
 	int GetMode();						  //  inside the PID.
 	int GetDirection();					  //
+	bool GetIsSaturated();
 
   private:
 	void Initialize();
@@ -85,6 +86,7 @@ class PID
 	unsigned long SampleTime;
 	double outMin, outMax;
 	bool inAuto, pOnE;
+	bool isSaturated;			// variable to keep track if previous compute() saturated the output to outMin or outMax.
 };
 #endif
 
