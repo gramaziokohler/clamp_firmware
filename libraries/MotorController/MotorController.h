@@ -250,9 +250,25 @@ class MotorController {
         _current_error = _current_position_step - _current_target_position_step;
         if (_current_error < -_errorToStop || _current_error > _errorToStop) {
             _target_reached = false;
-            //Serial.print("Stopped due to error: ");
+            // Serial.print("Stopped due to error: ");
             //Serial.println(_current_error);
             return true; //Break out of condition check.
+        }
+
+        // Stopping condition if PID is saturated for too long
+
+        static unsigned long last_nonsaturation_millis = 0; // Keep track of PID Saturation Time
+        if (_pid->GetIsSaturated()) {
+            if ((millis() - last_nonsaturation_millis) > max_saturation_time_millis) {
+                _target_reached = false;
+                //Serial.print("Stopped due to extended motor stall duration: ");
+                //Serial.print((millis() - last_nonsaturation_millis));
+                //Serial.print(" millis.");
+                return true; //Break out of condition check.
+            }
+        }
+        else {
+            last_nonsaturation_millis = millis(); //Keep updating the begin time if pid is not saturated.
         }
 
         // Extra stopping condition if the current motion is a homing cycle
@@ -299,6 +315,7 @@ class MotorController {
     double _motorSpeedPercentage = 0.0; // Instantous power ouput for motor // Updated by run() from _pid
     double _current_error = 0;          // Instantous positional error      // Updated by run()
     
+    const unsigned long max_saturation_time_millis = 1000;  // The amount of tme pid is saturated before motion is stopped.
 };
 
 #endif
