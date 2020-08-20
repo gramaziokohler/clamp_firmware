@@ -214,14 +214,17 @@ Tested with battery attached, 5V is provided 7805 regulator.
 
 ### Serial Commands
 
-| Command            | Format           | Notes                                                        | Example   |
-| ------------------ | ---------------- | ------------------------------------------------------------ | --------- |
-| Goto               | g[position]`\n`  | [position] can be any signed long integer<br />Value counted in step | g1000`\n` |
-| Stop               | s`\n`            |                                                              | s`\n`     |
-| Home               | h`\n`            |                                                              | h`\n`     |
-| Set Velocity       | v[velocity]`\n`  | [velocity] can be any signed double<br />Value counted in step/s | v2000`\n` |
-| Set Maximum Power  | p[max_power]`\n` | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | p80`\n`   |
-| Get Status Message | ?`\n`            | See table below                                              | ?`\n`     |
+| Command                             | Format            | Notes                                                        | Default | Example    |
+| ----------------------------------- | ----------------- | ------------------------------------------------------------ | ------- | ---------- |
+| Goto                                | g[position]`\n`   | [position] can be any signed long integer<br />Value counted in step |         | g1000`\n`  |
+| Stop                                | s`\n`             |                                                              |         | s`\n`      |
+| Home                                | h`\n`             |                                                              |         | h`\n`      |
+| Set Velocity (persistent)           | v[velocity]`\n`   | [velocity] can be any signed double<br />Value counted in step/s | 500     | v2000`\n`  |
+| Set Acceleration (persistent)       | a[accel]`\n`      | [accel] can be any signed double<br />Value counted in step/s^2 | 5000    | a5000`\n`  |
+| Set error_to_stop (persistent)      | e[error]`\n`      | [error] can be any signed double<br />Value counted in step  | 200     | e300`\n`   |
+| Set home_position_step (persistent) | o[offset-pos]`\n` | [offset-pos] can be any signed long<br />Value counted in step | 0       | p93500`\n` |
+| Set Maximum Power (persistent)      | p[max_power]`\n`  | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | 100     | p80`\n`    |
+| Get Status Message                  | ?`\n`             | See table below                                              |         | ?`\n`      |
 
 All commands are non-blocking. 
 
@@ -230,7 +233,7 @@ A newly arrived command will override an older command.
 - **Goto** command will go to new target even if previous goto command is not completed.
 - **Stop** command can stop **Goto** or **Home** motions at anytime.
 - **Set Velocity** command will not affect the speed of ongoing motion. It will affect the next Goto motion.
-- **Set Maximum Power** have immediate effect on ongoing motion. However setting this 
+- **Set Maximum Power** have immediate effect on ongoing motion. 
 - **Get Status Message** command prints the status string that includes status code, current position, current target, current power and battery value. See **Status Message** section below.
 
 ### Radio Communication
@@ -308,16 +311,40 @@ Homing Switch Position have an approximately 93mm jaw opening. After homing the 
 
 Speed from 1mm/s to 5mm/s had been tested to be stable and produce good torque.
 
+### firmware upload and commission
+
+1. Connect to Serial Port (USB),
+2. Upload firmware
+3. Confirm Radio address is correct
+4. `x1 `Reset Settings
+5. Press Reset Button to make settings effective
+6. Attach Battery
+7. `P50` to set power level
+8. `G100` to confirm Encoder / DC motor wiring direction (Flip if necessary)
+9. `H` and trigger switch manually to confirm switch is functional.
+10. `H` and allow automatic homing
+11. Measure jaw opening and calculate offset by [opening * 918]
+12. `o[offset value]` j
+
 
 
 ## Implemented Clamps
 
-| Address | Hardware | Encoder D2 | Encoder D3 |
-| ------- | -------- | ---------- | ---------- |
-| 1       | CL3      | Encoder F  |            |
-| 2       | CL3      |            |            |
-| 3       | CL3M     |            |            |
-| 4       | CL3M     |            |            |
+| Address | Hardware | Encoder D2 | Encoder D3 | Out 1 | Out 2 |
+| ------- | -------- | ---------- | ---------- | ----- | ----- |
+| 1       | CL3      | Green      | Yellow     | Red   | White |
+| 2       | CL3      | Yellow     | Green      | Red   | White |
+| 3       | CL3M     | Yellow     | Green      | Red   | White |
+| 4       | CL3M     |            |            |       |       |
+
+| Address | Homed Position - Jaw Width (mm) | Offset x918 (steps) |
+| ------- | ------------------------------- | ------------------- |
+| 1       | 103.2                           | 94737               |
+| 2       | 101.9                           | 93544               |
+| 3       | 100.5                           | 92259               |
+| 4       | 100.7                           | 92442               |
+
+
 
 ### Power Level / Force
 

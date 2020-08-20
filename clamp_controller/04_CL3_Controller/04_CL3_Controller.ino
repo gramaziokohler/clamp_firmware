@@ -120,7 +120,7 @@ const double m1_kd = 0.0001;                // Tuning based on result from Motor
 const double default_velocity = 500;			// Conservative speed
 const double default_accel = 5000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
 const double default_error_to_stop = 200.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
-const double default_home_position_step = 0;
+const long default_home_position_step = 0;
 const double default_power = 1.0;			// Default to full power
 const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
 
@@ -256,7 +256,7 @@ boolean RadioStartup() {
 // This function must be run after MotorController is created
 void loadSettings() {
 	// Load homed position Setting - o
-	double home_position_step = 0;
+	long home_position_step = 0;
 	EEPROM.get(10, home_position_step);
 	MotorController1.setHomingParam(m1_home_pin, HIGH, home_position_step);
 	// Load velocity Setting - v
@@ -433,7 +433,7 @@ void run_command_handle(const char* command) {
 	// Setting Command
 
 	if (*command == 'o') {
-		double home_position_step = atof(command + 1);
+		long home_position_step = atol(command + 1);
 		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
 		if (serial_printout_enabled) Serial.println(home_position_step);
 		MotorController1.setHomingParam(m1_home_pin, HIGH, home_position_step);
