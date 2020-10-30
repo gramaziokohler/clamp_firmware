@@ -129,6 +129,15 @@ class MotorController {
         //return run();
     }
 
+    // Reser Encoder count and current step to zero. This stops all motion and resets target.
+    void resetEncoderPos() {
+        stop();
+        setEncoderPos(0);
+        _current_position_step = 0;
+        _current_target_position_step = 0;
+        _target_reached = true;
+    }
+
     // Run returns True if computation is performed
     boolean run() {
         // Quite routine if the previous target is reached
