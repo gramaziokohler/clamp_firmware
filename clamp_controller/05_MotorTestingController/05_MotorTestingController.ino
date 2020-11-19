@@ -288,6 +288,26 @@ void run_command_handle(const char* command) {
 
 	}
 
+  if (*command == 'k') {
+    if (*(command + 1) == 'p') {
+      Serial.print(F("Set PID Kp: "));
+      double value = atof(command + 2);
+      MotorController1.setKp(value);
+      Serial.println(value,6);
+    }
+    if (*(command + 1) == 'i') {
+      Serial.print(F("Set PID Ki:"));
+      double value = atof(command + 2);
+      MotorController1.setKi(value);
+      Serial.println(value,6);
+    }
+    if (*(command + 1) == 'd') {
+      Serial.print(F("Set PID Kd:"));
+      double value = atof(command + 2);
+      MotorController1.setKd(value);
+      Serial.println(value,6);
+    }
+  }
 
 	if (*command == 'x') {
 		if (*(command + 1) == '1') {
@@ -312,7 +332,7 @@ void run_command_handle(const char* command) {
 }
 
 void run_motion_status_report(){
-    const unsigned long MONITOR_PEIROD_MILLIS = 10;
+    const unsigned long MONITOR_PEIROD_MILLIS = 30;
     static unsigned long next_run_time = 0;
     static boolean active = false;
     if (MotorController1.isMotorRunning()){
