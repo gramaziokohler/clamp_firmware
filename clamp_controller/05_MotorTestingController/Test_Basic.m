@@ -4,7 +4,7 @@ pkg load instrument-control
 filename = ['result_' (strftime ("%Y-%m-%d_%H-%M-%S", localtime (time ())))]
 
 # Opens serial port ttyUSB1 with baudrate of 115200 (config defaults to 8-N-1)
-s1 = serial("COM3", 115200) ;
+s1 = serial("COM5", 115200) ;
 # Wait a few seconds for Arduino to boot up
 pause(2);
 # Flush input and output buffers
@@ -18,18 +18,20 @@ srl_write(s1, "ki0.04\n") ;
 srl_write(s1, "kd0.0002\n") ;
 srl_write(s1, "h\n") ;
 pause(1)
-
-# Notes to be written in plot
-notes = '(20201118 1-13 motor, 15 hole, long screw. run 1. v1200 g-36600 kp0.01 ki0.04 kd0.0002)'
-#notes = '(Dry run after oil. v2000 g36600 kp0.01 ki0.04 kd0.0002)'
-
-# Movement Command to send to Arduino
-# g-18300 - one turn
-# g-36600 - two turns
-# g-73200 - three turns
 srl_flush(s1);
 pause(1)
-srl_write(s1, "g-36600\n") ;
+
+# Notes to be written in plot
+notes = '(20201118 1-49 motor dry run. v1200 g-59200 kp0.01 ki0.04 kd0.0002)'
+
+# motor + 1:49 planetary: one turn at planetary = 2960 steps
+# 1:49 planetary + 1:20 worm: 59200 (-ve dir tightens screw in)
+# motor + 1:13 planetary: one turn at planetary = 915 steps
+# 1:13 planetary + 1:20 worm: 18300
+
+
+# Movement Command to send to Arduino
+srl_write(s1, "g-59200\n") ;
 
 readings = [];
 while(1)
