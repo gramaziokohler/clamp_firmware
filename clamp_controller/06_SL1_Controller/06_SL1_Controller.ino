@@ -1,18 +1,18 @@
 /*
- Name:		04_CL3_Controller.ino
- Created:	2020-08-09
+ Name:		06_SL3_Controller.ino
+ Created:	2021-05-03
  Author:	leungp
 
 
  This controller continues the development from 03_TokyoController
- Persistent settings are added to reduce need of changing this code for different hardware config.
- The controller is finalized to include usability features and attempts to isolate functions into reusable classes.
+ Controls 1 main motor (m1) and 2 auxiliary motors (m2, m3 for grippers)
 
  The controller can accept commands from USB Serial (\n termainated)
  Radio commands can also be accepted. (This controller's default address is '1')
- h              - Home the axis
+ h              - (Not really a Homing) Reset the axis position to zero
  ?              - Print out status
  g[position]    - move to a given position (step), can be positive or negative value.
+ i[0/1]			- Retract / Extend Gripper
  s              - immediately stop
 
  o[offset-pos]	- Set Homed Offset (step) (persistent) (NEW)
@@ -25,16 +25,31 @@
  r[message]     - Send radio message to master (default address '0') e.g. rHello\n
  f[0/1]			- Enable Disable Radio Fix
 
- The controller now uses a PID controller for the motors for position control
- to follow a motion profile.
 
- This controller is intended to use with "03_RadioPIDControllerV2" electronics module.
- The pin assignment is for CL3 Clamp Hardware (one encoder + motor + homing switch)
+ This controller is intended to use with "04_RadioPIDControllerV3" electronics module.
+ The pin assignment is for SL3 Screwdriver Hardware (3 motors + 3 encoders + 2 homing switches for aux motors)
 
  The new feature in this controller include
- - Configurable max-motor-power.
- - Persistent settings.
- - LED status light output.
+ - Main motor do not have homing switch
+ - Gripper motor (2x) control and status feedback
+ - Designed for Ardhuino Mega with more IO pins
+ - DIP Switch now connectes to 4 pins instead of resistor ladder
+
+ The behavior of the gripper motors are as follows:
+ i0 - Retract (Loosen) Gripper Motors (full power)
+	- Both motor will move towards the limit switch with the same speed. 
+	- Individually, upon reaching the limit switch, the motor will stop.
+	- If the motion profile is completed before reaching the switch, the retract is failed.
+	- At retract-failed state, user can retry the retract but cannot initiate a tighten.
+
+ i1 - Extend (Tighten) Gripper Motors (at lower power)
+	- Both motors tightens (away from limit switch) with same motion profile
+		this maintains sync position for the two pins.
+	- Upon one of the motor jamming, the other motor will continue until it is also jammed, 
+		or stop after distance-difference reach a threshold
+	- If both motor completed their profile before reaching any jam, the extend is failed.
+	- If any motor completed their profile too soon, the extend is failed.
+	- At extend-fail state, user can retry extend or retract.
 */
 
 // Visual Micro "Optional Sketch Book" location should be set to the root path of the repo
@@ -48,6 +63,10 @@
 #include <EEPROM.h>         // Arduino default library for accessing EEPROM
 
 #include <DCMotor.h>        // clamp_firmware library
+
+#define ENCODER_USE_INTERRUPTS
+#define ENCODER_OPTIMIZE_INTERRUPTS
+
 #include <Encoder.h>        // Encoder library from PJRC.COM, LLC - Paul Stoffregen http://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <MotorController.h>    //New Class in Development
 
@@ -55,9 +74,7 @@
 
 #include <cc1101_nointerrupt.h>
 #include <ccpacket.h>
-
-//#include <Wire.h>
-
+#include "states.h" // A neighbour file holding the constants defining states
 
 // #define SerialComment
 //MOTOR_CONTROL_PRINTOUT (if defined) will print motor control error during motor movements.
@@ -73,7 +90,7 @@
 //Pins for Motor Driver M1 (Main Motor)
 const uint8_t m1_driver_ena_pin = 46;             // the pin the motor driver ENA1 is attached to (PWM Pin)
 const uint8_t m1_driver_in1_pin = 48;             // the pin the motor driver IN1 is attached to
-const uint8_t m1_driver_in2_pin =49;             // the pin the motor driver IN2 is attached to
+const uint8_t m1_driver_in2_pin = 49;             // the pin the motor driver IN2 is attached to
 
 //Pins for Motor Driver M2 (Gripper Motor)
 const uint8_t m2_driver_ena_pin = 44;          // L298H ENABLEA Pin (Schematic: MB_ENA)
@@ -92,7 +109,6 @@ const uint8_t m2_encoder1_pin = 19;            // Motor 2 encoder channel 1 (Sch
 const uint8_t m2_encoder2_pin = 21;            // Motor 2 encoder channel 2 (Schematic: MB_E2)
 const uint8_t m3_encoder1_pin = 20;            // Motor 3 encoder channel 1 (Schematic: MC_E1)
 const uint8_t m3_encoder2_pin = 18;            // Motor 3 encoder channel 2 (Schematic: MC_E2)
-
 
 //Pins for Homing Switch
 const uint8_t m2_home_pin = 39;                 // Limit switch in INPUT_PULLUP Mode (Schematic: MB_SW)
@@ -118,14 +134,35 @@ const uint8_t org_led_pin = 13;
 
 // ---- END OF PIN ASSIGNMENT  ----
 
-//Tunings for motors
+//Tunings for main motor (28428 steps per rev)
 const double m1_kp = 0.005;                 // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_kp = 0.040
 const double m1_ki = 0.003;                 // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_ki = 0.200
 const double m1_kd = 0.0001;                // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_kd = 0.0002
 
+//Tunings for gripper motors (
+const double m2_kp = 0.005;                 // 
+const double m2_ki = 0.003;                 // 
+const double m2_kd = 0.0001;                // 
+
+const double m3_kp = 0.005;                 // 
+const double m3_ki = 0.003;                 // 
+const double m3_kd = 0.0001;                // 
+
+// Settings for pin gripper motors
+const long gripper_max_extend_steps = 117500; // Full travel of 47mm is 117589 steps
+const long gripper_min_extend_steps = 25000; // Minimal amount of steps travelled before extend is considered successful.
+const long gripper_retract_overshoot = 5000; // Position to aim at when going back to the switch,
+											 // this can be zero but slight overshoot make sense.
+const double gripper_velocity = 2000;			// Gripper motor 4378 steps per rev
+const double gripper_accel = 5000;
+const double gripper_error_to_stop = 200.0;
+const double gripper_extend_power = 0.75;
+const double gripper_retract_power = 1.0;
+
+// Default values when resetting EEPROM settings
 const double default_velocity = 500;			// Conservative speed
 const double default_accel = 5000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
-const double default_error_to_stop = 200.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
+const double default_error_to_stop = 400.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
 const long default_home_position_step = 0;
 const double default_power = 1.0;			// Default to full power
 const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
@@ -144,7 +181,19 @@ constexpr byte radio_syncWord[2] = { 01, 27 };
 // Initialize motion control objects
 DCMotor Motor1(m1_driver_ena_pin, m1_driver_in1_pin, m1_driver_in2_pin);
 Encoder Encoder1(m1_encoder1_pin, m1_encoder2_pin);
-MotorController MotorController1(&Motor1, &Encoder1, m1_kp, m1_ki, m1_kd, default_accel, motor_run_interval, default_error_to_stop, false, false);
+MotorController MotorController1(&Motor1, &Encoder1, m1_kp, m1_ki, m1_kd, default_accel, motor_run_interval, default_error_to_stop, true, false);
+
+DCMotor Motor2(m2_driver_ena_pin, m2_driver_in1_pin, m2_driver_in2_pin);
+Encoder Encoder2(m2_encoder1_pin, m2_encoder2_pin);
+MotorController MotorController2(&Motor2, &Encoder2, m2_kp, m2_ki, m2_kd, default_accel, motor_run_interval, default_error_to_stop, true, false);
+
+DCMotor Motor3(m3_driver_ena_pin, m3_driver_in1_pin, m3_driver_in2_pin);
+Encoder Encoder3(m3_encoder1_pin, m3_encoder2_pin);
+MotorController MotorController3(&Motor3, &Encoder3, m3_kp, m3_ki, m3_kd, default_accel, motor_run_interval, default_error_to_stop, true, false);
+
+unsigned int gripper_state = GRIPPER_NotHomed;
+boolean gripper_sync_stop_countdown = false; // State of the sync stop checking routine. If true, the gripper is scheduled to stop.
+unsigned long gripper_sync_stop_end_time = 0;
 
 // Variables for serial communication
 byte incomingByte;
@@ -153,11 +202,11 @@ char status_string[61];
 // Variables for battery monitor
 int batt_value;
 
-
 // Variables for communications
 BufferedSerial bufferedSerial(1);
 CC1101 radio;
 uint8_t radio_partnum, radio_version, radio_marcstate;	// Stores the register values of the radio fetched at startup.
+boolean radio_found = false;
 unsigned long radio_last_receive_millis = 0;
 unsigned long radio_unfrozen_applied_millis = 0;
 boolean radio_fix_enabled = true;
@@ -172,7 +221,7 @@ unsigned long profile_end_micros = 0;
 void setup() {
 
 	//Load settings
-	loadSettings();
+	loadMotorSettings();
 
 	// Initialize Serial
 	bufferedSerial.serialInit();
@@ -190,10 +239,6 @@ void setup() {
 	pinMode(dip_switch_pin_2, INPUT_PULLUP);
 	pinMode(dip_switch_pin_3, INPUT_PULLUP);
 	pinMode(dip_switch_pin_4, INPUT_PULLUP);
-	Serial.print(1 - digitalRead(dip_switch_pin_1));
-	Serial.print(1 - digitalRead(dip_switch_pin_2));
-	Serial.print(1 - digitalRead(dip_switch_pin_3));
-	Serial.print(1 - digitalRead(dip_switch_pin_4));
 	DIPValue += 1 - digitalRead(dip_switch_pin_1) << 0;
 	DIPValue += 1 - digitalRead(dip_switch_pin_2) << 1;
 	DIPValue += 1 - digitalRead(dip_switch_pin_3) << 2;
@@ -241,13 +286,13 @@ boolean RadioStartup() {
 	// Determine if radio is found. If everything is zero, the radio is probably dead.
 	if (radio_partnum == 0 && radio_version == 0 && radio_marcstate == 0) {
 		// Radio Not Found - report to Serial
-		return false;
 #if defined(SerialComment)
 		Serial.println(F("(CC1101 radio abnormal)"));
 #endif
+		radio_found = false;
+		return false;
 	}
 	else {
-		return true;
 		// Radio Found - Report to Serial
 #if defined(SerialComment)
 		Serial.println(F("(CC1101 radio ok)"));
@@ -263,41 +308,55 @@ boolean RadioStartup() {
 		Serial.print(radio_CC1101_PKTCTRL1_value);
 		Serial.println(F(") (Typ Values: 0,20,13,7,14)"));
 #endif
-
+		radio_found = true;
+		return true;
 	}
 
 }
 
-// Load persistent settings from EEPROM
-// This function must be run after MotorController is created
-void loadSettings() {
-	// Load homed position Setting - o
-	long home_position_step = 0;
-	EEPROM.get(10, home_position_step);
-	MotorController1.setHomingParam(m2_home_pin, HIGH, home_position_step);
-	// Load velocity Setting - v
-	double velocity = 0.0;
-	EEPROM.get(20, velocity);
-	MotorController1.setDefaultVelocity(velocity);
-	// Load accel Setting - a
-	double accel = 0.0;
-	EEPROM.get(30, accel);
-	MotorController1.setAcceleration(accel);
-	// Load error-to-stop  Setting
-	double errorToStop = 0.0;
-	EEPROM.get(40, errorToStop);
-	MotorController1.setErrorToStop(errorToStop);
-	// Load power Setting
-	double maxPower = 0.0;
-	EEPROM.get(50, maxPower);
-	MotorController1.setMaxPower(maxPower);
-}
 
 const int setting_addr_o = 10;
 const int setting_addr_v = 20;
 const int setting_addr_a = 30;
 const int setting_addr_e = 40;
 const int setting_addr_p = 50;
+
+// Load persistent settings from EEPROM
+// This function must be run after MotorController is created
+void loadMotorSettings() {
+	// Load homed position Setting - o
+	long home_position_step = 0;
+	EEPROM.get(setting_addr_o, home_position_step);
+	MotorController1.setHomingParam(0, HIGH, home_position_step);
+	// Load velocity Setting - v
+	double velocity = 0.0;
+	EEPROM.get(setting_addr_v, velocity);
+	MotorController1.setDefaultVelocity(velocity);
+	// Load accel Setting - a
+	double accel = 0.0;
+	EEPROM.get(setting_addr_a, accel);
+	MotorController1.setAcceleration(accel);
+	// Load error-to-stop  Setting
+	double errorToStop = 0.0;
+	EEPROM.get(setting_addr_e, errorToStop);
+	MotorController1.setErrorToStop(errorToStop);
+	// Load power Setting
+	double maxPower = 0.0;
+	EEPROM.get(setting_addr_p, maxPower);
+	MotorController1.setMaxPower(maxPower);
+
+	// Gripper Motor Settings  // Fixed settings, not loading from EEPROM
+	MotorController2.setHomingParam(m2_home_pin, HIGH, 0);
+	MotorController2.setDefaultVelocity(gripper_velocity);
+	MotorController2.setAcceleration(gripper_accel);
+	MotorController2.setErrorToStop(gripper_error_to_stop);
+	MotorController3.setHomingParam(m3_home_pin, HIGH, 0);
+	MotorController3.setDefaultVelocity(gripper_velocity);
+	MotorController3.setAcceleration(gripper_accel);
+	MotorController3.setErrorToStop(gripper_error_to_stop);
+
+}
+
 
 void resetEEPROM() {
 	EEPROM.put(setting_addr_o, default_home_position_step); // Reset homed position Setting
@@ -307,14 +366,14 @@ void resetEEPROM() {
 	EEPROM.put(setting_addr_p, default_power); // Reset power Setting
 }
 
-
 void loop() {
 	//The main loop implements quasi-time sharing task management.
+	// Higher tasks have higher priority
 	//This require all the subroutines to execute in relatively short time.
 	//Long subroutine such as Serial prints should be used with cuation.
 
 
-	// Run motor control
+	// Run Main motor control
 	if (MotorController1.run()) {
 #if defined(SerialComment)
 		Serial.print(F("CurPos: "));
@@ -324,10 +383,34 @@ void loop() {
 		Serial.print(F(" PWM: "));
 		Serial.println(MotorController1.currentMotorPowerPercentage());
 #endif
+		//return;
+	}
+	
+	// Run Gripper motor
+	if (MotorController2.run()) {
+		Serial.print("Motor 2 Running. Pos:");
+		Serial.print((long)MotorController2.currentPosition());
+		Serial.print(" Power:");
+		Serial.println((int)(MotorController2.currentMotorPowerPercentage() * 100.0));
+		//return;
+	}
+	if (MotorController3.run()) {
+		Serial.print("Motor 3 Running. Pos:");
+		Serial.print((long)MotorController3.currentPosition());
+		Serial.print(" Power:");
+		Serial.println((int)(MotorController3.currentMotorPowerPercentage() * 100.0));
+		//return;
 	}
 
-	// Run battery report
-	run_batt_monitor();
+	//static bool _m2_ran = MotorController2.run();
+	//static bool _m3_ran = MotorController3.run();
+	//if (_m2_ran || _m3_ran) return;
+
+	// Run gripper motor sync stop
+	if (gripper_motor_sync_stop()) {
+		if (serial_printout_enabled) Serial.println("Gripper Motor Out of Sync Stopped.");
+		return;
+	}
 
 	// Handle serial command input
 	if (bufferedSerial.available()) {
@@ -335,6 +418,7 @@ void loop() {
 		serial_printout_enabled = true;
 		Serial.println(command); //Echo the received command
 		run_command_handle(command);
+		return;
 	}
 
 	// Handle radio command input
@@ -372,29 +456,16 @@ void loop() {
 
 		// Record the last Radio Reception time
 		radio_last_receive_millis = millis();
+		return;
 	}
+	// Run Radio anti-freeze
+	if (run_radio_frozen_fix()) return;
 
-	run_radio_frozen_fix();
+	// Run battery report
+	if (run_batt_monitor()) return;
+
+
 	run_status_light();
-
-	//CCPACKET packet;
-	//radio.receiveData(&packet);
-
-	//if (packet.length > 0) {
-	//    Serial.print(F("PACKET Recieved: "));
-	//    for (unsigned int i = 0; i < packet.length; i++) {
-	//        Serial.write(packet.data[i]);
-	//    }
-	//    Serial.print(F(" (LQI = "));
-	//    Serial.print(lqi(packet.lqi));
-	//    Serial.print(F(" , RSSI = "));
-	//    Serial.print(rssi(packet.rssi));
-	//    Serial.println(F(")"));
-	//}
-
-	//if (digitalRead(radio_gdo0_pin)) {
-	//    Serial.print(F("GDO Is HIGH"));
-	//}
 
 }
 
@@ -429,8 +500,8 @@ void run_command_handle(const char* command) {
 	// Action Command
 
 	if (*command == 'h') {
-		if (serial_printout_enabled) Serial.println(F("Command Home : Homing"));
-		MotorController1.home(true, 1000);
+		if (serial_printout_enabled) Serial.println(F("Command Home : Reset Main Motor Position"));
+		MotorController1.home(true, 0);
 	}
 
 
@@ -444,15 +515,28 @@ void run_command_handle(const char* command) {
 	if (*command == 's') {
 		if (serial_printout_enabled) Serial.println(F("Command s : Stop Now"));
 		MotorController1.stop();
+		MotorController2.stop();
+		MotorController3.stop();
+		gripper_state = 0;
 	}
 
-	// Setting Command
+	if (*command == 'i') {
+		if (*(command + 1) == '0') {
+			if (serial_printout_enabled) Serial.println(F("Command i0 : Retract Gripper Pins"));
+			gripper_retract();
+		}
+
+		if (*(command + 1) == '1') {
+			if (serial_printout_enabled) Serial.println(F("Command i1 : Extend Gripper Pins"));
+			gripper_extend();
+		}
+	}
 
 	if (*command == 'o') {
 		long home_position_step = atol(command + 1);
 		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
 		if (serial_printout_enabled) Serial.println(home_position_step);
-		MotorController1.setHomingParam(m2_home_pin, HIGH, home_position_step);
+		MotorController1.setHomingParam(0, HIGH, home_position_step);
 		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
 	}
 
@@ -502,20 +586,6 @@ void run_command_handle(const char* command) {
 			resetEEPROM();
 		}
 	}
-	//if (*command == '+') {
-//    long target_position_step = MotorController1.currentPosition() + atol(command + 1);
-//    Serial.print("Increment Position:");
-//    Serial.println(target_position_step);
-//    MotorController1.moveToPosition(target_position_step);
-//}
-
-//if (*command == '-') {
-//    long target_position_step = MotorController1.currentPosition() - atol(command + 1);
-//    Serial.print("Decrement Position:");
-//    Serial.println(target_position_step);
-//    MotorController1.moveToPosition(target_position_step);
-//}
-
 
 	if (*command == 'f') {
 		if (*(command + 1) == '0') {
@@ -546,9 +616,127 @@ void run_command_handle(const char* command) {
 	}
 }
 
+//Both motor will move towards the limit switch with the same speed.
+//Upon reaching the limit switch, the motor will stop. Similar to a homing cycle.
+void gripper_retract() {
+	MotorController2.setMaxPower(gripper_retract_power);
+	MotorController3.setMaxPower(gripper_retract_power);
+	// If motor have never been homed, it will home full travel
+	if (gripper_state == GRIPPER_NotHomed) {
+		MotorController2.home(true, gripper_velocity, gripper_max_extend_steps);
+		MotorController3.home(true, gripper_velocity, gripper_max_extend_steps);
+	}
+	// If motor is homed before. The homing amount is = current position (+ve) + overshoot (+ve)
+	else {
+		MotorController2.home(true, gripper_velocity, MotorController2.currentPosition() + gripper_retract_overshoot);
+		MotorController3.home(true, gripper_velocity, MotorController3.currentPosition() + gripper_retract_overshoot);
+	}
+
+	gripper_state = GRIPPER_Retracting;
+	gripper_sync_stop_countdown = false;
+}
+
+//Both gripper motors tightens (away from limit switch) with same motion profile
+//this maintains sync position for the two pins. 
+//Gripper must be homed (retracted) once after power on to be extended.
+void gripper_extend() {
+	if (gripper_state == GRIPPER_NotHomed || gripper_state == GRIPPER_RetractFail) {
+		return;
+	}
+	MotorController2.setMaxPower(gripper_extend_power);
+	MotorController3.setMaxPower(gripper_extend_power);
+	MotorController2.moveToPosition(gripper_max_extend_steps);
+	MotorController3.moveToPosition(gripper_max_extend_steps);
+	gripper_state = GRIPPER_Extending;
+	gripper_sync_stop_countdown = false;
+}
+
+// Gripper motor sync stop check. 
+// Returns true if the gripper_state is changed.
+boolean gripper_motor_sync_stop() {
+	//if (serial_printout_enabled) Serial.print(F("Checking Sync."));
+	if (!(gripper_state == GRIPPER_Extending || gripper_state == GRIPPER_Retracting)) return false;
+
+	// Retracting
+	if (gripper_state == GRIPPER_Retracting) {
+		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
+			if (!MotorController2.isHomed() || !MotorController3.isHomed()) {
+				gripper_state = GRIPPER_RetractFail;
+				if (serial_printout_enabled) {
+					Serial.print(F("Gripper Retract Fail. Motor2 Pos:"));
+					Serial.print(MotorController2.currentPosition());
+					Serial.print(F(" Motor3 Pos:"));
+					Serial.println(MotorController3.currentPosition());
+				}
+				return true;
+			}
+			else {
+				gripper_state = GRIPPER_Retracted;
+				if (serial_printout_enabled) {
+					Serial.println(F("Gripper Retract Success."));
+				}
+				return true;
+			}
+		}
+	};
+	//if (serial_printout_enabled) Serial.print(F("Checking Sync.2"));
+
+	// Extending
+	if (gripper_state == GRIPPER_Extending) {
+
+		// Success if both motors are stopped by jamming
+		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
+			if (serial_printout_enabled) Serial.print(F("Gripper Extend Stopped."));
+			
+			if (!MotorController2.isTargetReached() && !MotorController3.isTargetReached()) {
+				if (serial_printout_enabled) {
+					Serial.print(F("Gripper Extend Success. Motor2 Pos:"));
+					Serial.print(MotorController2.currentPosition());
+					Serial.print(F(" Motor3 Pos:"));
+					Serial.println(MotorController3.currentPosition());
+				}
+				gripper_state = GRIPPER_Extended;
+			}
+			else {
+				gripper_state = GRIPPER_ExtendFail;
+			}
+			return true;
+		}
+
+		//- If both motor completed their profile before reaching any jam, or stopped too soon the extend is failed.
+		if (!MotorController2.isMotorRunning()){
+			if (MotorController2.isTargetReached() || MotorController2.currentPosition() < gripper_min_extend_steps) {
+				if (serial_printout_enabled) {
+					Serial.print(F("MotorController2 Extend Fail. Pos:"));
+					Serial.println(MotorController2.currentPosition());
+				}
+				MotorController3.stop();
+				gripper_state = GRIPPER_ExtendFail;
+				return true;
+			}
+		}
+		if (!MotorController3.isMotorRunning()) {
+			if (MotorController3.isTargetReached() || MotorController3.currentPosition() < gripper_min_extend_steps) {
+				if (serial_printout_enabled) {
+					Serial.print(F("MotorController3 Extend Fail. Pos:"));
+					Serial.println(MotorController3.currentPosition());
+				}
+				MotorController2.stop();
+				gripper_state = GRIPPER_ExtendFail;
+				return true;
+			}
+		}
+
+	}
+
+	// Setting Command
+	return false;
+};
 
 // Battery Monitor - To be separated into its own class and file.
-void run_batt_monitor() {
+// Return true if battery is checked.
+
+boolean run_batt_monitor() {
 	{
 		const unsigned long MONITOR_PEIROD_MILLIS = 500;
 		static unsigned long next_run_time = 0;
@@ -557,15 +745,17 @@ void run_batt_monitor() {
 			next_run_time = millis() + MONITOR_PEIROD_MILLIS;
 			batt_value = analogRead(battery_monitor_pin);
 			//profile_end("Batt Monitor Time Taken : ");
+			return true;
 		}
-
+		return false;
 	}
 }
 
 // Quick Fix to deal with radio occationally frozen.
-void run_radio_frozen_fix() {
+// Return true if fix has been applied.
+boolean run_radio_frozen_fix() {
 	// radio_frozen_fix can be turned off via serial command.
-	if (!radio_fix_enabled) return;
+	if (!radio_fix_enabled) return false;
 
 	const unsigned long RADIO_FROZEN_TIMEOUT = 3000;
 	// If radio do not receive anything within timeout, radio will reset itself into RX mode.
@@ -576,21 +766,26 @@ void run_radio_frozen_fix() {
 			//radio.flushTxFifo();
 			if (serial_printout_enabled) Serial.println(F("RadioFixApplied"));
 			radio_unfrozen_applied_millis = millis();
+			return true;
 		}
 	}
-
-
+	return false;
 }
 
 // Status Reporting
 char* get_current_status_string() {
 	unsigned int i = 0; // This variable keep count of the output string.
-	i += snprintf(status_string + i, 60 - i, "%u,%ld,%ld,%d,%i",
+	i += snprintf(status_string + i, 60 - i, "%u,%ld,%ld,%d,%i,%ld,%ld,%ld,%ld,%i?",
 		get_status_code(),
 		(long)MotorController1.currentPosition(),
 		(long)MotorController1.currentTarget(),
 		(int)(MotorController1.currentMotorPowerPercentage() * 100.0),
-		batt_value
+		batt_value,
+		(long)MotorController2.currentPosition(),
+		(long)MotorController2.currentTarget(),
+		(long)MotorController3.currentPosition(),
+		(long)MotorController3.currentTarget(),
+		gripper_state
 	);
 	return status_string;
 }
@@ -629,19 +824,35 @@ void run_status_light() {
 			digitalWrite(grn_led_pin, HIGH);
 		}
 
-		// ** Orange Status Light **
-		//- Long Lit = Motor Moving
+		// ** Blue Status Light (Communication)**
+		//- Long Lit = Communication received in past 1 sec
 		//- Blink = Communication not received for over 1 sec.
-		//- Off = Standby / Normal
+		//- Off = Radio Bad
+		
+
 		const unsigned long RADIO_NO_RECEIVE_THRESHOLD = 1000;
-		if (MotorController1.isMotorRunning()) {
-			digitalWrite(org_led_pin, HIGH);
+		if (!radio_found) {
+			digitalWrite(blu_led_pin, LOW);
 		}
 		else if (millis() - radio_last_receive_millis >= RADIO_NO_RECEIVE_THRESHOLD) {
-			digitalWrite(org_led_pin, blinking_high_low);
+			digitalWrite(blu_led_pin, blinking_high_low);
 		}
+		else {
+			digitalWrite(blu_led_pin, HIGH);
+		}
+
+		// ** Orange Status Light **
+		//- Long Lit = Main Motor (1) or Gripper Motor (2/3) Moving
+		//- Blink = Gripper Motor Stuck
+		//- Off = Standby / Normal
+
+		if (MotorController1.isMotorRunning() || MotorController2.isMotorRunning() || MotorController3.isMotorRunning()) {
+			digitalWrite(org_led_pin, HIGH);
+		}
+		// TODO Blink = Gripper Motor Stuck
 		else {
 			digitalWrite(org_led_pin, LOW);
 		}
+
 	}
 }

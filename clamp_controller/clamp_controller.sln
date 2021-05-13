@@ -13,6 +13,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "04_CL3_Controller", "04_CL3
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "06_SL1_Controller", "06_SL1_Controller\06_SL1_Controller.vcxproj", "{62921245-7B29-4779-96EA-7B9C0262E134}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MegaInterruptTest", "MegaInterruptTest\MegaInterruptTest.vcxproj", "{207B06D9-7677-4D2B-847B-AF7F4F16D83F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Motor11_PID_Tuning_SL1", "..\experiments\motion_control_experiments\Motor11_PID_Tuning_SL1\Motor11_PID_Tuning_SL1.vcxproj", "{AAFF96E7-C1A5-4D3A-9000-0FA7D81D305C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -39,6 +43,14 @@ Global
 		{62921245-7B29-4779-96EA-7B9C0262E134}.Debug|x86.Build.0 = Debug|Win32
 		{62921245-7B29-4779-96EA-7B9C0262E134}.Release|x86.ActiveCfg = Release|Win32
 		{62921245-7B29-4779-96EA-7B9C0262E134}.Release|x86.Build.0 = Release|Win32
+		{207B06D9-7677-4D2B-847B-AF7F4F16D83F}.Debug|x86.ActiveCfg = Debug|Win32
+		{207B06D9-7677-4D2B-847B-AF7F4F16D83F}.Debug|x86.Build.0 = Debug|Win32
+		{207B06D9-7677-4D2B-847B-AF7F4F16D83F}.Release|x86.ActiveCfg = Release|Win32
+		{207B06D9-7677-4D2B-847B-AF7F4F16D83F}.Release|x86.Build.0 = Release|Win32
+		{AAFF96E7-C1A5-4D3A-9000-0FA7D81D305C}.Debug|x86.ActiveCfg = Debug|Win32
+		{AAFF96E7-C1A5-4D3A-9000-0FA7D81D305C}.Debug|x86.Build.0 = Debug|Win32
+		{AAFF96E7-C1A5-4D3A-9000-0FA7D81D305C}.Release|x86.ActiveCfg = Release|Win32
+		{AAFF96E7-C1A5-4D3A-9000-0FA7D81D305C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
