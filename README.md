@@ -1,12 +1,13 @@
 # clamp_firmware
-Firmware for embedded Arduino on remote-controlled actuators (clamps).
+Firmware for embedded Arduino on remote-controlled actuators (clamps / screwdrivers) and remote cameras.
 
 This repo is part of the [Robotic Assembled Timber Structures with Integral Timber Joints](https://github.com/gramaziokohler/integral_timber_joints) project. 
 
 ## Repo folder structure
 
-- **/clamp_controller** - Contains one Visual Studio solutions that contains all clamp controller projects. Sub folder contains different VC++ projects for various controller.
-- **/serial_radio** - Contains one Visual Studio solution for the Serial Radio. Sub folder contains different VC++ projects for various dongle firmware.
+- **/clamp_controller** - Contains the Visual Studio solutions that contains all clamp controller projects. Sub folder contains different VC++ projects for various controller.
+- **/esp32cam_controller** - Contains the Arduino project for creating a low latency MJPEG wireless camera used for robotic vision during docking movements.
+- **/serial_radio** - Contains the Visual Studio solution for the Serial Radio. Sub folder contains different VC++ projects for various dongle firmware.
 - **/libraries** - stores all the internal and external libraries for the c++ compiler. Some libraries are written by me and are potentially reusable. 
 - **/experiments** - each subfolder stores the scripts and data for validation experiments.
 - **/doc** - Electronics modules and components documentation from original manufactures.
@@ -58,6 +59,10 @@ Bi-directional position control is achieved with a PID control loop ([libraries\
 ## SerialRadio
 
 [Details of USB Serial Radio Firmware (including message format)](serial_radio/Readme.md)
+
+## WirelessCamera
+
+[Wireless Camera Readme](esp32cam_controller/Readme.md)
 
 Credits
 -------------
