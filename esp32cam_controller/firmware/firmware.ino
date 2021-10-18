@@ -175,7 +175,9 @@ void setup()
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  config.frame_size = FRAMESIZE_SVGA;
+//  config.frame_size = FRAMESIZE_SVGA; // 800x600
+//  config.frame_size = FRAMESIZE_SXGA; // 1280 x 1024
+  config.frame_size = FRAMESIZE_UXGA; //1600 x 1200
   config.jpeg_quality = 12;
   config.fb_count = 2;
 
