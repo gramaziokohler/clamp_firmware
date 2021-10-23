@@ -35,7 +35,7 @@
 WebServer server(80);
 
 // Set Static IP address (WIFI connection to host)
-IPAddress local_IP(192, 168, 0, 160);
+//IPAddress local_IP(192, 168, 1, 160);
 // Set Gateway IP address (WIFI connection to host)
 IPAddress gateway(192, 168, 1, 1);
 
@@ -139,6 +139,33 @@ void lcdMessage(String msg)
 #endif
 }
 
+IPAddress ip_address() {
+  // Test connection to pin 13
+  pinMode(12, INPUT_PULLUP);
+  pinMode(13, OUTPUT);
+  pinMode(14, INPUT_PULLUP);
+  pinMode(15, INPUT_PULLUP);
+  digitalWrite(13, LOW);
+  delay(100);
+  boolean c_12_13 = digitalRead(12) == LOW;
+  boolean c_13_15 = digitalRead(15) == LOW;
+  pinMode(13, INPUT_PULLUP);
+  
+  // Test connection to pin 14
+  pinMode(14, OUTPUT);
+  digitalWrite(14, LOW);
+  delay(100);
+  boolean c_14_15 = digitalRead(15) == LOW;
+  pinMode(14, INPUT_PULLUP);
+
+  // Refer to documentation for address table
+  if (!c_12_13 && c_14_15) return IPAddress (192, 168, 1, 101);
+  if (c_12_13 && !c_14_15) return IPAddress (192, 168, 1, 102);
+  if (c_12_13 && c_14_15) return IPAddress (192, 168, 1, 103);
+  if (c_13_15) return IPAddress (192, 168, 1, 104);
+  return IPAddress (192, 168, 1, 100);
+}
+
 void setup()
 {
 #ifdef ENABLE_OLED
@@ -175,8 +202,8 @@ void setup()
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-//  config.frame_size = FRAMESIZE_SVGA; // 800x600
-//  config.frame_size = FRAMESIZE_SXGA; // 1280 x 1024
+  //  config.frame_size = FRAMESIZE_SVGA; // 800x600
+  //  config.frame_size = FRAMESIZE_SXGA; // 1280 x 1024
   config.frame_size = FRAMESIZE_UXGA; //1600 x 1200
   config.jpeg_quality = 12;
   config.fb_count = 2;
@@ -198,6 +225,7 @@ void setup()
   lcdMessage(String("join ") + ssid);
   WiFi.mode(WIFI_STA);
 
+  IPAddress local_IP = ip_address();
   IPAddress subnet(255, 255, 255, 0);
   IPAddress primaryDNS(8, 8, 8, 8);
   IPAddress secondaryDNS(8, 8, 4, 4);
