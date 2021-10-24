@@ -150,7 +150,7 @@ IPAddress ip_address() {
   boolean c_12_13 = digitalRead(12) == LOW;
   boolean c_13_15 = digitalRead(15) == LOW;
   pinMode(13, INPUT_PULLUP);
-  
+
   // Test connection to pin 14
   pinMode(14, OUTPUT);
   digitalWrite(14, LOW);
@@ -244,7 +244,7 @@ void setup()
   IPAddress ip;
   ip = WiFi.localIP();
   Serial.println(F("WiFi connected"));
-  Serial.println("");
+  Serial.print("Local IP : ");
   Serial.println(ip);
   Serial.print("Stream Link: rtsp://");
   Serial.print(ip);
@@ -270,6 +270,18 @@ void loop()
 
   if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
+    // Attempt to Reconnect to WiFi
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(F("."));
+    }
+    IPAddress ip;
+    ip = WiFi.localIP();
+    Serial.println(F("WiFi connected"));
+    Serial.print("Local IP : ");
+    Serial.println(ip);
   } else {
     digitalWrite(WIFI_LED_PIN, LOW); //LED On
   }
