@@ -137,11 +137,17 @@ Note: Despite CC1101 requires VCC = 3.3V, the TELESKY modules I got cannot opera
 
 Note: Low battery is estimated roughly at 3.6V x 4  = 14.4V (LOW_BATT_THRESHOLD = 880) because the controller do not carry the battery sense calibration value.
 
-**Orange Status Light**
+**Blue Status Light (Communication)**
 
 - Long Lit = Motor Moving (Override the Blink Status)
 - Blink = Communication not received for over 1 sec.
 - Off = Standby / Normal 
+
+**Orange Status Light**
+
+- Long Lit = Main Motor (1) or Gripper Motor (2/3) Moving
+- Blink = Gripper Motor Stuck (TODO)
+- Off = Standby / Normal
 
 ### **DIP Switch**
 
@@ -259,12 +265,16 @@ When any message is received at the clamp controller, it will reply with a full 
 
 ### Status Message
 
-| Value Item                  | Meaning                                                      | Type / Range      |
-| --------------------------- | ------------------------------------------------------------ | ----------------- |
-| status_code                 | Bit [0] = Homed<br />Bit [1] = MotorRunning<br />Bit [2] = DirectionExtending | (byte) 0 -7       |
-| currentPosition             | PID Loop current position                                    | (long int)        |
-| currentTarget               | Current PID positional control target.                       | (long int)        |
-| currentMotorPowerPercentage | Current PID output for motor driver                          | (int) -100 to 100 |
+| Value Item                    | Meaning                                                      | Type / Range      |
+| ----------------------------- | ------------------------------------------------------------ | ----------------- |
+| status_code                   | Bit [0] = Homed<br />Bit [1] = MotorRunning<br />Bit [2] = DirectionExtending | (byte) 0 -7       |
+| m1currentPosition             | PID Loop current position                                    | (long int)        |
+| m1currentTarget               | Current PID positional control target.                       | (long int)        |
+| m1currentMotorPowerPercentage | Current PID output for motor driver                          | (int) -100 to 100 |
+| battValue                     | Raw Batt Voltage Value                                       | (int) 0 - 1024    |
+| m2currentPosition             | Gripper Motor current Position                               | (long int)        |
+| m2currentTarget               | Gripper Motor current Target                                 | (long int)        |
+| gripper_state                 | 0 = GRIPPER_NotHomed<br />1 = GRIPPER_Extending<br />2 = GRIPPER_Retracting<br />3 = GRIPPER_Extended<br />4 = GRIPPER_Retracted<br />5 = GRIPPER_ExtendFail<br />6 = GRIPPER_RetractFail | (int) 0-6         |
 
 ## Operational Notes
 
