@@ -40,7 +40,7 @@ The pull rod has 5mm pitch, translating to **5685.6 steps per mm**
 
 Three stage gear box with ratio (determined by the number of teeth on Ring vs Sun: (Teeth-on-ring) / (Teeth-on-sun) + 1) = (46/17+1) x (46/11+1) x (46/11+1)
 
-The integrated hall sensor on the DC motors have 11 steps per rev per channel. Effectively **44 steps per rev**. (100kHz max). After the two gear boxes, the conversion is **4378 steps per rev.**
+The integrated hall sensor on the DC motors have 11 steps per rev per channel. Effectively **44 steps per rev**. (100kHz max). After the two gear boxes, the conversion is **4378 steps per rev.** At 1.75mm pitch, **2501 steps per mm**.
 
 The Gripper Pin Mechanism has about 47mm travel on M12 with 1.75mm Pitch. Total travel is **117589 steps**
 
