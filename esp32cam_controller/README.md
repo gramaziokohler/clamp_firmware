@@ -58,8 +58,8 @@ Jumpers can be inserted in between the following pins to change its default IP a
 | 192.168.1.100 (Robot Flange Toolchanger) |      |      |      |      |
 | 192.168.1.101 (Clamp CL3 c1)             | J1   | J1   |      |      |
 | 192.168.1.102 (Clamp CL3 c2)             |      |      | J2   | J2   |
-| 192.168.1.103 (Clamp CL3 c3)             | J1   | J1   | J2   | J2   |
-| 192.168.1.104 (Clamp CL3 c4)             |      | J1   | J1   |      |
+| 192.168.1.103 (Clamp CL3M c3)            | J1   | J1   | J2   | J2   |
+| 192.168.1.104 (Clamp CL3M c4)            |      | J1   | J1   |      |
 
 ## Validation Experiments
 
