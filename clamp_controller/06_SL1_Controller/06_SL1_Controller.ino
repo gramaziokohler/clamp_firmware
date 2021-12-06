@@ -135,9 +135,9 @@ const uint8_t org_led_pin = 13;
 // ---- END OF PIN ASSIGNMENT  ----
 
 //Tunings for main motor (28428 steps per rev)
-const double m1_kp = 0.005;                 // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_kp = 0.040
-const double m1_ki = 0.003;                 // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_ki = 0.200
-const double m1_kd = 0.0001;                // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_kd = 0.0002
+const double m1_kp = 0.01;                  // Tuning based on result from Motor11_PID_Tuning_SL1 m1_kp = 0.01
+const double m1_ki = 0.1;                   // Tuning based on result from Motor11_PID_Tuning_SL1 m1_ki = 0.1
+const double m1_kd = 0.0002;                // Tuning based on result from Motor11_PID_Tuning_SL1 m1_kd = 0.0002
 
 //Tunings for gripper motors (
 const double m2_kp = 0.005;                 // 
@@ -149,22 +149,23 @@ const double m3_ki = 0.003;                 //
 const double m3_kd = 0.0001;                // 
 
 // Settings for pin gripper motors
-const long gripper_max_extend_steps = 125000; // Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
-const long gripper_min_extend_steps = 25000; // Minimal amount of steps travelled before extend is considered successful.
-const long gripper_retract_overshoot = 5000; // Position to aim at when going back to the switch,
-											 // this can be zero but slight overshoot make sense.
-const double gripper_velocity = 3000;			// Gripper motor 4378 steps per rev / pitch 1.75
+const long gripper_max_extend_steps = 125000;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
+												// Gripper motor 4378 steps per rev / pitch 1.75
+const long gripper_min_extend_steps = 25000;	// Minimal amount of steps travelled before extend is considered successful.
+const long gripper_retract_overshoot = 5000;	// Position to aim at when going back to the switch,
+												// this can be zero but slight overshoot make sense.
+const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
 const double gripper_accel = 5000;
-const double gripper_error_to_stop = 1000.0;
+const double gripper_error_to_stop = 400.0;
 const double gripper_extend_power = 0.75;
 const double gripper_retract_power = 1.0;
 
 // Default values when resetting EEPROM settings
-const double default_velocity = 500;			// Conservative speed
-const double default_accel = 5000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
+const double default_velocity = 4736;			// Conservative speed
+const double default_accel = 10000;               // Tuning based on result from Motor08_PID_TrapezoidalMotionProfile m1_accel = 3000
 const double default_error_to_stop = 400.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
 const long default_home_position_step = 0;
-const double default_power = 1.0;			// Default to full power
+const double default_power = 0.75;			// Default to full power
 const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
 
 // Settings for radio communications
@@ -180,7 +181,7 @@ constexpr byte radio_syncWord[2] = { 01, 27 };
 
 // Initialize motion control objects
 DCMotor Motor1(m1_driver_ena_pin, m1_driver_in1_pin, m1_driver_in2_pin);
-Encoder Encoder1(m1_encoder1_pin, m1_encoder2_pin);
+Encoder Encoder1(m1_encoder2_pin, m1_encoder1_pin); // The order is flipped due to wiring decisions.
 MotorController MotorController1(&Motor1, &Encoder1, m1_kp, m1_ki, m1_kd, default_accel, motor_run_interval, default_error_to_stop, true, false);
 
 DCMotor Motor2(m2_driver_ena_pin, m2_driver_in1_pin, m2_driver_in2_pin);
@@ -240,10 +241,10 @@ void setup() {
 	pinMode(dip_switch_pin_2, INPUT_PULLUP);
 	pinMode(dip_switch_pin_3, INPUT_PULLUP);
 	pinMode(dip_switch_pin_4, INPUT_PULLUP);
-	DIPValue += 1 - digitalRead(dip_switch_pin_1) << 0;
-	DIPValue += 1 - digitalRead(dip_switch_pin_2) << 1;
-	DIPValue += 1 - digitalRead(dip_switch_pin_3) << 2;
-	DIPValue += 1 - digitalRead(dip_switch_pin_4) << 3;
+	DIPValue += 1 - digitalRead(dip_switch_pin_1) << 3;
+	DIPValue += 1 - digitalRead(dip_switch_pin_2) << 2;
+	DIPValue += 1 - digitalRead(dip_switch_pin_3) << 1;
+	DIPValue += 1 - digitalRead(dip_switch_pin_4) << 0;
 
 
 	Serial.print(F("(DIPValue = "));
@@ -507,6 +508,8 @@ void run_command_handle(const char* command) {
 	if (*command == 'h') {
 		if (serial_printout_enabled) Serial.println(F("Command Home : Reset Main Motor Position"));
 		MotorController1.resetEncoderPos();
+		MotorController2.setMaxPower(gripper_retract_power);
+		MotorController3.setMaxPower(gripper_retract_power);
 		MotorController2.home(true, gripper_velocity, 117500);
 		MotorController3.home(true, gripper_velocity, 117500);
 		gripper_state = GRIPPER_Retracting;
