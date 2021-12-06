@@ -2,7 +2,9 @@
 
 ## Wiring
 
-### JZ-3615 motor driving board
+### Main motor Driver
+
+**JZ-3615 motor driving board**
 
 **Driver input voltage:** DC 6V - 36V
 **Number of Channels:** 1
@@ -21,7 +23,9 @@
 | Digital Input - Channel 1 - 2 | IN2         | Arduino GPIO       |             | 49          | m1_driver_in2_pin |
 | Digital Power -ve             | COM         | Arduino Ground     |             | GND         |                   |
 
-### HJX50RNA27i-X8001BM Planetary Gearbox 1:22.21 + NMRV 1:20 Worm Gearbox
+### Main Motor and Gearbox
+
+**HJX50RNA27i-X8001BM Planetary Gearbox 1:22.21 + NMRV 1:20 Worm Gearbox**
 
 The integrated hall sensor on the DC motors have 16 steps per rev per channel. Effectively **64 steps per rev**. (100kHz max). After the two gear boxes, the conversion is **28428 steps per rev.**
 
@@ -36,7 +40,17 @@ The pull rod has 5mm pitch, translating to **5685.6 steps per mm**
 | Motor Power     | M1    | Driver OUT1 | Red         |             | -               |
 | Motor Power     | M2    | Driver OUT2 | Wht         |             | -               |
 
-### CHP36GP-3429 Planetary Gearbox 1:99.5075
+Default speed is **0.8mm/s** , or **4548.48step/s**. If necessary, it can be reduced to gain some more torque:
+
+| Linear speed (mm/s) | Step Speed (step/s) |
+| ------------------- | ------------------- |
+| 0.8 (recommended)   | 4548.48             |
+| 0.7                 | 3979.92             |
+| 0.6 (More torque)   | 3411.36             |
+
+### Pin Gripper Motor and Gearbox
+
+**CHP36GP-3429 Planetary Gearbox 1:99.5075**
 
 Three stage gear box with ratio (determined by the number of teeth on Ring vs Sun: (Teeth-on-ring) / (Teeth-on-sun) + 1) = (46/17+1) x (46/11+1) x (46/11+1)
 
@@ -44,18 +58,18 @@ The integrated hall sensor on the DC motors have 11 steps per rev per channel. E
 
 The Gripper Pin Mechanism has about 47mm travel on M12 with 1.75mm Pitch. Total travel is **117589 steps**
 
-Motor 2 (PCB: Motor B)
+**Motor 2 (Closer to Controller)** (PCB: Motor B)
 
-| Pin Function    | Label (Motor) | Label PCB | Cable Color | Arduino Pin   | Name in Code    |
-| --------------- | ------------- | --------- | ----------- | ------------- | --------------- |
-| Motor Power     | M1            | MB+       |             | (L298HN OUT1) |                 |
-| Motor Power     | M2            | MB-       |             | (L298HN OUT2) |                 |
-| Encoder         | C1            | MB_En1    |             | 19            | m2_encoder1_pin |
-| Encoder         | C2            | MB_En2    |             | 21            | m2_encoder2_pin |
-| Encoder Power + | VCC           | +5V       |             | 5V            | -               |
-| Encoder Power - | GND           | GND       |             | Gnd           | -               |
+| Pin Function    | Label (Motor) | Label PCB | Cable Color  | Arduino Pin   | Name in Code    |
+| --------------- | ------------- | --------- | ------------ | ------------- | --------------- |
+| Motor Power     | M1            | MB+       | Red (Strip)  | (L298HN OUT1) |                 |
+| Motor Power     | M2            | MB-       | Red (Strip)  | (L298HN OUT2) |                 |
+| Encoder         | C1            | MB_En1    | Blue         | 19            | m2_encoder1_pin |
+| Encoder         | C2            | MB_En2    | Blue (Strip) | 21            | m2_encoder2_pin |
+| Encoder Power + | VCC           | +5V       | White        | 5V            | -               |
+| Encoder Power - | GND           | GND       | Green        | Gnd           | -               |
 
-Motor 3 (PCB: Motor C)
+**Motor 3 (Closer to Main Motor)** (PCB: Motor C)
 
 | Pin Function    | Label (Motor) | Label PCB | Cable Color | Arduino Pin   | Name in Code    |
 | --------------- | ------------- | --------- | ----------- | ------------- | --------------- |
@@ -66,7 +80,7 @@ Motor 3 (PCB: Motor C)
 | Encoder Power + | VCC           | +5V       |             | 5V            | -               |
 | Encoder Power - | GND           | GND       |             | Gnd           | -               |
 
-### Homing switch for gripper motors
+### Gripper Homing Switch
 
 Utilizing Arduino's Internal pull up resistor (47k). 100nF capacitor is added for noise filtering between NC and GND, close to the Arduino.
 
@@ -74,20 +88,20 @@ Utilizing Arduino's Internal pull up resistor (47k). 100nF capacitor is added fo
 
 | Pin Function  | Label | Connection | Cable Color | Arduino Pin | Name in Code |
 | ------------- | ----- | ---------- | ----------- | ----------- | ------------ |
-| Switch1 - COM | 1     | Arduino    | Black       | GND         | -            |
-| Switch1 - NC  | 2     | Arduino    | Red         | 39          | m2_home_pin  |
-| Switch1 - NO  | 3     | ~~n/c~~    | -           | -           | -            |
-| Switch2 - COM | 1     | Arduino    | Black       | GND         | -            |
-| Switch2 - NC  | 2     | Arduino    | Red         | 38          | m3_home_pin  |
-| Switch2 - NO  | 3     | ~~n/c~~    | -           | -           | -            |
+| Switch1 - COM | 1     | Arduino    | Black       | GND         |              |
+| Switch1 - NC  | 2     | ~~n/c~~    |             |             |              |
+| Switch1 - NO  | 3     | Arduino    | Red         | 39          | m2_home_pin  |
+| Switch2 - COM | 1     | Arduino    | Black       | GND         |              |
+| Switch2 - NC  | 2     | ~~n/c~~    |             |             |              |
+| Switch2 - NO  | 3     | Arduino    | Red         | 38          | m3_home_pin  |
 
 ### Battery Sense and Regulation
 
 | Pin Function | Label | Connection | Cable Color | Arduino Pin | Name in Code        |
 | ------------ | ----- | ---------- | ----------- | ----------- | ------------------- |
 | COM          |       | Arduino    | Blk         | GND         | -                   |
-| Input        |       | Battery +  | Red Stripe  |             | -                   |
-| Output       |       | Arduino    | Red Stripe  | A7          | battery_monitor_pin |
+| Input        |       | Battery +  | Red         |             | -                   |
+| Output       |       | Arduino    | Red         | A3          | battery_monitor_pin |
 
 Battery sense is a simple Voltage Divider
 
@@ -117,14 +131,14 @@ According to some questionable source:
 | ------------------------- | ----- | ---------- | ----------- | ----------- | -------------- |
 | 5V Power +                | VCC   | Arduino    |             | 5V*         |                |
 | Power Ground              | GND   | Arduino    |             | GND         |                |
-| Slave Select (SS)         | CSN   | Arduino    |             | 10          | radio_ss_pin   |
-| Master Output Slave Input | SI    | Arduino    |             | 11          | radio_mosi_pin |
-| Master Input Slave Output | SO    | Arduino    |             | 12          | radio_miso_pin |
-| Serial Clock              | SCK   | Arduino    |             | 13          | radio_sck_pin  |
-| General Output 0          | GO0   | Arduino    |             | A0          | radio_gdo0_pin |
+| Slave Select (SS)         | CSN   | Arduino    |             | 53          | radio_ss_pin   |
+| Master Output Slave Input | SI    | Arduino    |             | 51          | radio_mosi_pin |
+| Master Input Slave Output | SO    | Arduino    |             | 50          | radio_miso_pin |
+| Serial Clock              | SCK   | Arduino    |             | 52          | radio_sck_pin  |
+| General Output 0          | GO0   | Arduino    |             | A2          | radio_gdo0_pin |
 | General Output 2          | GO2   | ~~n/c~~    | ~~n/c~~     | ~~n/c~~     | ~~n/c~~        |
 
-Note: Nano Hardware SPI Pins: SPI: 10 (SS), 11 (MOSI), 12 (MISO), 13 (SCK). These should be followed.
+Note:  Hardware SPI Pins for Arduino Mega is used: SPI: 53(SS), 51 (MOSI), 60 (MISO), 52 (SCK).
 
 Note: Despite CC1101 requires VCC = 3.3V, the TELESKY modules I got cannot operate in 3.3V, it needs 5.0V. I do not have a spec sheet or the schematic, I suspect it has an onboard Voltage converter.
 
@@ -151,77 +165,41 @@ Note: Low battery is estimated roughly at 3.6V x 4  = 14.4V (LOW_BATT_THRESHOLD 
 
 ### **DIP Switch**
 
-A DIP switch with a resistor ladder. Occupy only a sinlge analog pin. SW1 is the Most Significant Bit
+Different from the previous controller DIP switch use 4 separate pins. SW1 is the Most Significant Bit. This can be used for changing settings easily without recompilation. Such as Radio address. 
 
-This can be used for changing settings easily without recompilation. Such as Radio address. 
+The pins are placed as `INPUT_PULLUP`. Physically placing the switch to the ON position will connect the pins to `GND`, result in LOW input signal when read by `digitalRead()`.
 
-| R0   | R1   | R2   | R3   | R4   |
-| ---- | ---- | ---- | ---- | ---- |
-| 1.6k | 2.2K | 4.7k | 10k  | 20k  |
-
-
-
-| Arduino Pin | Name in Code   |
-| ----------- | -------------- |
-| A6          | dip_switch_pin |
+| Code On DIP Switch | Arduino Pin | Name in Code     |
+| ------------------ | ----------- | ---------------- |
+| 1                  | 4           | dip_switch_pin_1 |
+| 2                  | 5           | dip_switch_pin_2 |
+| 3                  | 6           | dip_switch_pin_3 |
+| 4                  | 7           | dip_switch_pin_4 |
 
 **Radio Address Setting**
 
-Tested with battery attached, 5V is provided 7805 regulator.
+Radio Address (char) = DIPValue (uint) + 48 + 1
 
-| SW1  | SW2  | SW3  | SW4  | Analog Reading <br />(Board 1) | Analog Reading <br />(Board 2) | Address<br />(char) |
-| ---- | ---- | ---- | ---- | ------------------------------ | ------------------------------ | ------------------- |
-| 0    | 0    | 0    | 0    | 0                              | 0                              | 1                   |
-| 0    | 0    | 0    | 1    | 73                             | 74                             | 2                   |
-| 0    | 0    | 1    | 0    | 140                            | 141                            | 3                   |
-| 0    | 0    | 1    | 1    | 198                            | 197                            | 4                   |
-| 0    | 1    | 0    | 0    | 258                            | 257                            | 5                   |
-| 0    | 1    | 0    | 1    | 302                            | 301                            | 6                   |
-| 0    | 1    | 1    | 0    | 341                            | 340                            | 7                   |
-| 0    | 1    | 1    | 1    | 376                            | 375                            | 8                   |
-| 1    | 0    | 0    | 0    | 431                            | 430                            | 9                   |
-| 1    | 0    | 0    | 1    | 457                            | 457                            | 10                  |
-| 1    | 0    | 1    | 0    | 482                            | 481                            | 11                  |
-| 1    | 0    | 1    | 1    | 504                            | 503                            | 12                  |
-| 1    | 1    | 0    | 0    | 529                            | 528                            | 13                  |
-| 1    | 1    | 0    | 1    | 547                            | 546                            | 14                  |
-| 1    | 1    | 1    | 0    | 564                            | 564                            | 15                  |
-| 1    | 1    | 1    | 1    | 580                            | 580                            | 16                  |
-
-
+| SW1  | SW2  | SW3  | SW4  | DIP Value in code <br /> | Radio Address<br />(char) |
+| ---- | ---- | ---- | ---- | ------------------------ | ------------------------- |
+|      |      |      |      | 0                        | `1`                       |
+|      |      |      | ON   | 1                        | `2`                       |
+|      |      | ON   |      | 2                        | `3`                       |
+|      |      | ON   | ON   | 3                        | `4`                       |
+|      | ON   | 0    |      | 4                        | `5`                       |
+|      | ON   | 0    | ON   | 5                        | `6`                       |
+|      | ON   | ON   |      | 6                        | `7`                       |
+|      | ON   | ON   | ON   | 7                        | `8`                       |
+| ON   |      |      |      | 8                        | `9`                       |
+| ON   |      |      | ON   | 9                        | `10`                      |
+| ON   |      | ON   |      | 10                       | `11`                      |
+| ON   |      | ON   | ON   | 11                       | `12`                      |
+| ON   | ON   |      |      | 12                       | `13`                      |
+| ON   | ON   |      | ON   | 13                       | `14`                      |
+| ON   | ON   | ON   |      | 14                       | `15`                      |
+| ON   | ON   | ON   | ON   | 15                       | `16`                      |
 
 
-
-### Arduino Nano Wiring Overview
-
-![https://i.stack.imgur.com/W9Ril.png](https://i.stack.imgur.com/W9Ril.png)
-
-
-
-| Connection    | Arduino Pin | Name in Code (One Motor) | Name in Code (Two Motor) |
-| ------------- | ----------- | ------------------------ | ------------------------ |
-| USB           | D0          |                          |                          |
-| USB           | D1          |                          |                          |
-| Motor Encoder | D2          | m1_encoder1_pin          | m1_encoder1_pin          |
-| Motor Encoder | D3          | m1_encoder2_pin          | **m2_encoder1_pin**      |
-| Motor Driver  | D4          | m1_driver_in1_pin        | m1_driver_in1_pin        |
-| Motor Driver  | D5          | m1_driver_ena_pin        | m1_driver_ena_pin        |
-| Motor Driver  | D6          |                          | m2_driver_ena_pin        |
-| Motor Driver  | D7          | m1_driver_in2_pin        | m1_driver_in2_pin        |
-| Motor Driver  | D8          |                          | m2_driver_in1_pin        |
-| Motor Driver  | D9          |                          | m2_driver_in2_pin        |
-| Radio         | D10         | radio_ss_pin             | radio_ss_pin             |
-| Radio         | D11         | radio_mosi_pin           | radio_mosi_pin           |
-| Radio         | D12         | radio_miso_pin           | radio_miso_pin           |
-| Radio         | D13         | radio_sck_pin            | radio_sck_pin            |
-| Radio         | A0          | radio_gdo0_pin           | radio_gdo0_pin           |
-| Homing Switch | A1          | m1_home_pin              | m1_home_pin              |
-| Homing Switch | A2          |                          | **m2_home_pin**          |
-| LED           | A3          | status_led_pin           | status_led_pin           |
-| Motor Encoder | A4          |                          | **m1_encoder2_pin**      |
-| Motor Encoder | A5          |                          | **m2_encoder2_pin**      |
-| DIP Switch    | A6          | dip_switch_pin           | dip_switch_pin           |
-| Battery Sense | A7          | battery_monitor_pin      | battery_monitor_pin      |
 
 ## Communication
 
@@ -230,14 +208,17 @@ Tested with battery attached, 5V is provided 7805 regulator.
 | Command                             | Format            | Notes                                                        | Default | Example    |
 | ----------------------------------- | ----------------- | ------------------------------------------------------------ | ------- | ---------- |
 | Goto                                | g[position]`\n`   | [position] can be any signed long integer<br />Value counted in step |         | g1000`\n`  |
-| Stop                                | s`\n`             |                                                              |         | s`\n`      |
-| Home                                | h`\n`             |                                                              |         | h`\n`      |
-| Set Velocity (persistent)           | v[velocity]`\n`   | [velocity] can be any signed double<br />Value counted in step/s | 500     | v2000`\n`  |
-| Set Acceleration (persistent)       | a[accel]`\n`      | [accel] can be any signed double<br />Value counted in step/s^2 | 5000    | a5000`\n`  |
-| Set error_to_stop (persistent)      | e[error]`\n`      | [error] can be any signed double<br />Value counted in step  | 200     | e300`\n`   |
+| Stop                                | s`\n`             | Stop all motors immediately                                  |         | s`\n`      |
+| Home                                | h`\n`             | Reset Main motor encoder position<br />Home Gripper Motors by Retracting |         | h`\n`      |
+| Gripper Pins Movement               | i[0/1]`\n`        | i0 : Retract Gripper Pins<br />i1 : Extend Gripper Pins      |         | i0`\n`     |
+| Set Velocity (persistent)           | v[velocity]`\n`   | [velocity] can be any signed double<br />Value counted in step/s | 4736    | v2000`\n`  |
+| Set Acceleration (persistent)       | a[accel]`\n`      | [accel] can be any signed double<br />Value counted in step/s^2 | 10000   | a5000`\n`  |
+| Set error_to_stop (persistent)      | e[error]`\n`      | [error] can be any signed double<br />Value counted in step  | 400     | e300`\n`   |
 | Set home_position_step (persistent) | o[offset-pos]`\n` | [offset-pos] can be any signed long<br />Value counted in step | 0       | p93500`\n` |
-| Set Maximum Power (persistent)      | p[max_power]`\n`  | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | 100     | p80`\n`    |
+| Set Maximum Power (persistent)      | p[max_power]`\n`  | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | 75      | p80`\n`    |
 | Get Status Message                  | ?`\n`             | See table below                                              |         | ?`\n`      |
+| Reset EEPROM settings               | x1`\n`            |                                                              |         |            |
+|                                     |                   |                                                              |         |            |
 
 All commands are non-blocking. 
 
@@ -272,28 +253,21 @@ When any message is received at the clamp controller, it will reply with a full 
 | m1currentTarget               | Current PID positional control target.                       | (long int)        |
 | m1currentMotorPowerPercentage | Current PID output for motor driver                          | (int) -100 to 100 |
 | battValue                     | Raw Batt Voltage Value                                       | (int) 0 - 1024    |
-| m2currentPosition             | Gripper Motor current Position                               | (long int)        |
+| m2currentPosition             | Gripper Motorcurrent Position                                | (long int)        |
 | m2currentTarget               | Gripper Motor current Target                                 | (long int)        |
+| m3currentPosition             | Gripper Motor current Position                               | (long int)        |
+| m3currentTarget               | Gripper Motor current Target                                 | (long int)        |
 | gripper_state                 | 0 = GRIPPER_NotHomed<br />1 = GRIPPER_Extending<br />2 = GRIPPER_Retracting<br />3 = GRIPPER_Extended<br />4 = GRIPPER_Retracted<br />5 = GRIPPER_ExtendFail<br />6 = GRIPPER_RetractFail | (int) 0-6         |
 
 ## Operational Notes
 
 ### Setting Device Address
 
-| SW1  | SW2  | SW3  | Device Address (char) | Device Address (int) |
-| ---- | ---- | ---- | --------------------- | -------------------- |
-| 0    | 0    | 0    | 1                     | 49                   |
-| 0    | 0    | 1    | 2                     | 50                   |
-| 0    | 1    | 0    | 3                     | 51                   |
-| 0    | 1    | 1    | 4                     | 52                   |
-| 1    | 0    | 0    | 5                     | 53                   |
-| 1    | 0    | 1    | 6                     | 54                   |
-| 1    | 1    | 0    | 7                     | 55                   |
-| 1    | 1    | 1    | 8                     | 56                   |
+Refer to the table above to set address.
 
-**During operation:** Clamp 1 address is '1'. Clamp 2 address is '2'.
+**During operation:** Refer to \clamp_controller\README.md for assigned address.
 
-Simple.
+
 
 ### Digital Twin Declaration
 
