@@ -32,23 +32,23 @@ Parameters: `a5000` `e400` `kp0.01` `ki0.04` `kd0.0002`
 
 ## Determining Max Speed / Typical Speed
 
-The HJX50RNA27i motor + 1:49 planetary gear box : one turn at planetary = 2960 steps. together with the 1:20 worm gearbox, the **step/rev is : 59200** (+ve dir tightens screw in). The main screw has a **5mm pitch**.
+The HJX50RNA27i motor + 1:49 planetary gear box : one turn at planetary = 2960 steps. together with the 1:20 worm gearbox, the **step/rev is : 28428 ** (+ve dir tightens screw in). The main screw has a **5mm pitch**.
 
-For a linear speed of 1mm/s screwdriver advancement, motor step velocity will be  (59200 / 5 * 1) steps/sec = **v11840** (however, this is not achievable, see above.)
+For a linear speed of 1mm/s screwdriver advancement, motor step velocity will be  (28248 / 5 * 1) steps/sec = **v5685** (however, this is not achievable, see above.)
 
-Max linear speed of 0.5mm/s screwdriver advancement, motor step velocity (59200 / 5 * 0.5) steps/sec = **v5920** (Too close to max power)
+Below graph = **v5920** (~ 1.04mm/s)
 
 ![result_2021-12-02_20-23-17](data/result_2021-12-02_20-23-17.jpg)
 
-A reasonable linear speed of 0.4mm/s screwdriver advancement, motor step velocity (59200 / 5 * 0.4) steps/sec = **v4736** (~50% power)
+ Below graph = **v4736** (~50% power) (0.84mm/s)
 
 ![result_2021-12-02_20-22-27](data/result_2021-12-02_20-22-27.jpg)
 
-A lower linear speed of 0.35mm/s screwdriver advancement, motor step velocity (59200 / 5 * 0.4) steps/sec = **v4144** (More torque maybe)
+Below graph is = **v4144** (More torque maybe) (0.73mm/s)
 
 ![result_2021-12-02_20-23-44](data/result_2021-12-02_20-23-44.jpg)
 
-Conclusion: We will perform the following tuning at 0.4mm/s screwdriver advancement  **v4736**
+Conclusion: We will perform the following tuning at **v4736** (~0.84mm/s advancement)
 
 ## Determining Acceleration
 
@@ -142,4 +142,6 @@ Different from typical PID set point tunning. Our system of chasing a moving tar
 - `ki` have no effect on the constant speed phase error (as opposed to typical system)
 - Larger `kd` reduce oscillation, however introduce steady state error substantially (look at round 3 derivative tune)
 
-The PID values chosen for the SL1 main motor will be `kp=0.01, ki=0.1, kd=0.0002`, recommended velocity is `v4736` : 4736 steps/s (0.4 mm/s) and acceleration is `a10000` : 10000 step/s^2
+The PID values chosen for the SL1 main motor will be `kp=0.01, ki=0.1, kd=0.0002`.
+
+Recommended velocity is `v4548.48` : 4548.48 steps/s (0.8 mm/s) and acceleration is `a10000` : 10000 step/s^2
