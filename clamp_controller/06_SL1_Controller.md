@@ -54,7 +54,7 @@ Default speed is **0.8mm/s** , or **4548.48step/s**. If necessary, it can be red
 
 Three stage gear box with ratio (determined by the number of teeth on Ring vs Sun: (Teeth-on-ring) / (Teeth-on-sun) + 1) = (46/17+1) x (46/11+1) x (46/11+1)
 
-The integrated hall sensor on the DC motors have 11 steps per rev per channel. Effectively **44 steps per rev**. (100kHz max). After the two gear boxes, the conversion is **4378 steps per rev.** At 1.75mm pitch, **2501 steps per mm**.
+The integrated hall sensor on the DC motors have 11 steps per rev per channel. Effectively **44 steps per rev**. (100kHz max). After the two gear boxes, the conversion is **4378.33 steps per rev.** At 1.75mm pitch, **2501.90 steps per mm**.
 
 The Gripper Pin Mechanism has about 47mm travel on M12 with 1.75mm Pitch. Total travel is **117589 steps**
 
@@ -205,20 +205,21 @@ Radio Address (char) = DIPValue (uint) + 48 + 1
 
 ### Serial Commands
 
-| Command                             | Format            | Notes                                                        | Default | Example    |
-| ----------------------------------- | ----------------- | ------------------------------------------------------------ | ------- | ---------- |
-| Goto                                | g[position]`\n`   | [position] can be any signed long integer<br />Value counted in step |         | g1000`\n`  |
-| Stop                                | s`\n`             | Stop all motors immediately                                  |         | s`\n`      |
-| Home                                | h`\n`             | Reset Main motor encoder position<br />Home Gripper Motors by Retracting |         | h`\n`      |
-| Gripper Pins Movement               | i[0/1]`\n`        | i0 : Retract Gripper Pins<br />i1 : Extend Gripper Pins      |         | i0`\n`     |
-| Set Velocity (persistent)           | v[velocity]`\n`   | [velocity] can be any signed double<br />Value counted in step/s | 4736    | v2000`\n`  |
-| Set Acceleration (persistent)       | a[accel]`\n`      | [accel] can be any signed double<br />Value counted in step/s^2 | 10000   | a5000`\n`  |
-| Set error_to_stop (persistent)      | e[error]`\n`      | [error] can be any signed double<br />Value counted in step  | 400     | e300`\n`   |
-| Set home_position_step (persistent) | o[offset-pos]`\n` | [offset-pos] can be any signed long<br />Value counted in step | 0       | p93500`\n` |
-| Set Maximum Power (persistent)      | p[max_power]`\n`  | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | 75      | p80`\n`    |
-| Get Status Message                  | ?`\n`             | See table below                                              |         | ?`\n`      |
-| Reset EEPROM settings               | x1`\n`            |                                                              |         |            |
-|                                     |                   |                                                              |         |            |
+| Command                             | Format                        | Notes                                                        | Default | Example    |
+| ----------------------------------- | ----------------------------- | ------------------------------------------------------------ | ------- | ---------- |
+| Goto                                | g[position]`\n`               | [position] can be any signed long integer<br />Value counted in step |         | g1000`\n`  |
+| Stop                                | s`\n`                         | Stop all motors immediately                                  |         | s`\n`      |
+| Home                                | h`\n`                         | Reset Main motor encoder position<br />Home Gripper Motors by Retracting |         | h`\n`      |
+| Gripper Pins Movement               | i[0/1]`\n`                    | i0 : Retract Gripper Pins<br />i1 : Extend Gripper Pins      |         | i0`\n`     |
+| Set Velocity (persistent)           | v[velocity]`\n`               | [velocity] can be any signed double<br />Value counted in step/s | 4736    | v2000`\n`  |
+| Set Acceleration (persistent)       | a[accel]`\n`                  | [accel] can be any signed double<br />Value counted in step/s^2 | 10000   | a5000`\n`  |
+| Set error_to_stop (persistent)      | e[error]`\n`                  | [error] can be any signed double<br />Value counted in step  | 400     | e300`\n`   |
+| Set home_position_step (persistent) | o[offset-pos]`\n`             | [offset-pos] can be any signed long<br />Value counted in step | 0       | p93500`\n` |
+| Set Maximum Power (persistent)      | p[max_power]`\n`              | [max_power] can be any float between 0.0 to 100.0<br />Value is percentage of maximum power output. | 75      | p80`\n`    |
+| Set Pin Gripper Home Position       | j[motor_number]<br />\[steps] | [motor_number] 2: Gripper next to Controller<br />[motor_number] 3: Gripper next to Main Driver<br/>[steps] Travel Distance in steps (can be negative) | 0       | j2-900`\n` |
+| Get Status Message                  | ?`\n`                         | See table below                                              |         | ?`\n`      |
+| Reset EEPROM settings               | x1`\n`                        |                                                              |         |            |
+| Enable Radio Fix                    | f                             | f0: Disable Radio Fix<br />f1: Enable Radio Fix              | Enabled | f0`\n`     |
 
 All commands are non-blocking. 
 
@@ -267,8 +268,6 @@ Refer to the table above to set address.
 
 **During operation:** Refer to \clamp_controller\README.md for assigned address.
 
-
-
 ### Digital Twin Declaration
 
 SerialCommanderTokyo.py implemented the two following lines to initiate the ClampModel
@@ -281,26 +280,42 @@ self.clamp2 = ClampModel('2', 918, 95.0, 94.0, 225.0, 860.0, 1004.0)
 
 
 
+### Setting Gripper Home Position
+
+The full travel of the pin is assumed to be 47 mm (117589 steps) by design. The retracted state is when the pin is just retracted completely into the gripper block.  The extended state is when the gearbox touch the top of the gripper block.
+
+However the homing switch is triggered when the pin is retracted further into the block. This position is therefor the home position, and is typically a negative value. The position can be calculated by measuring the distance between the gearbox and the gripper block (x).
+
+`home_position (step) = [47(mm) - x (mm)] * 4378.33 (step/mm)`
+
 ### Position
 
-Clamp Jaw **Extension** Direction is **Positive**
+Screw **Tightening** Direction is **Positive**
 
-The motor has **3672 steps per rev.** / with the 1204 lead scew: **918 steps per mm**
+The motor has **28428 steps per rev.**  The main scew has 5mm pitch: **5685.6 steps per mm**
 
 Homing Switch Position have an approximately 93mm jaw opening. After homing the controller reset to **step -1650** (~-1.8mm). Typical use should then go towards zero (+ve direction) by issuing `g0\n` command.
 
-| Description                    | Controller Position (step) | Controller Position (mm) | Jaw Spacing (mm) |
-| ------------------------------ | -------------------------- | ------------------------ | ---------------- |
-| Homed Position                 | -1650                      | -1.8                     | 93.2             |
-| Zero / <br />Closed Jaw (Thin) | 0                          | 0                        | 95               |
-| Closed Jaw (Thick)             | 13770                      | 15                       | 110              |
-| Jaw Engage Joint               | 64260                      | 70                       | 165              |
-| Open Jaw                       | 114750                     | 125                      | 220              |
-| Maximum Extension              | 119340                     | 130                      | 225              |
+| Description                          | Controller Position (step) | Controller Position (mm) | Jaw Spacing (mm) |
+| ------------------------------------ | -------------------------- | ------------------------ | ---------------- |
+| Homed Position                       | 0                          | 0                        | 0                |
+| Screw Tip Cross target beam face     | 0                          | 0                        | 0                |
+| Screw tip at 50mm                    |                            |                          |                  |
+| Screw Tip penetrate target beam face |                            |                          |                  |
+| Full travel complete                 |                            |                          |                  |
 
 ### Speed
 
-Speed from 1mm/s to 5mm/s had been tested to be stable and produce good torque.
+Speed from 0.7mm/s to 0.85mm/s had been tested to be stable and produce good torque.
+
+| Speed (mm/s) | v (step/s) | Notes                     |
+| ------------ | ---------- | ------------------------- |
+| 0.85         | 4832.76    | Speed used for tuning PID |
+| 0.80         | 4548.48    |                           |
+| 0.75         | 4264.2     |                           |
+| 0.70         | 3,979.92   | Better Torque             |
+
+
 
 ### firmware upload and commission
 

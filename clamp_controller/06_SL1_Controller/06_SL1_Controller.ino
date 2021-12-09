@@ -134,6 +134,9 @@ const uint8_t org_led_pin = 13;
 
 // ---- END OF PIN ASSIGNMENT  ----
 
+// PID Loop frequency
+const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
+
 //Tunings for main motor (28428 steps per rev)
 const double m1_kp = 0.01;                  // Tuning based on result from Motor11_PID_Tuning_SL1 m1_kp = 0.01
 const double m1_ki = 0.1;                   // Tuning based on result from Motor11_PID_Tuning_SL1 m1_ki = 0.1
@@ -149,9 +152,11 @@ const double m3_ki = 0.003;                 //
 const double m3_kd = 0.0001;                // 
 
 // Settings for pin gripper motors
-const long gripper_max_extend_steps = 125000;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
-												// Gripper motor 4378 steps per rev / pitch 1.75
-const long gripper_min_extend_steps = 25000;	// Minimal amount of steps travelled before extend is considered successful.
+long m2_home_position_steps = 0;				// Gripper motor 4378.33 steps per rev, pitch 1.75
+long m3_home_position_steps = 0;				// 2501.90 steps per mm
+
+const long gripper_max_extend_steps = 117589;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
+const long gripper_min_extend_steps = 50000;	// Minimal amount of steps travelled before extend is considered successful.
 const long gripper_retract_overshoot = 5000;	// Position to aim at when going back to the switch,
 												// this can be zero but slight overshoot make sense.
 const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
@@ -166,7 +171,9 @@ const double default_accel = 10000;               // Tuning based on result from
 const double default_error_to_stop = 400.0;         // Maximum absolute step error for the controller to stop itself without reaching the goal.
 const long default_home_position_step = 0;
 const double default_power = 0.75;			// Default to full power
-const int motor_run_interval = 10;          // Motor PID sample Interval in millis()
+const long default_m2_home_position_steps = 0;
+const long default_m3_home_position_steps = 0;
+
 
 // Settings for radio communications
 const char radio_master_address = '0';      // Address of default master radio
@@ -322,6 +329,8 @@ const int setting_addr_v = 20;
 const int setting_addr_a = 30;
 const int setting_addr_e = 40;
 const int setting_addr_p = 50;
+const int setting_addr_j2 = 60;
+const int setting_addr_j3 = 70;
 
 // Load persistent settings from EEPROM
 // This function must be run after MotorController is created
@@ -342,17 +351,20 @@ void loadMotorSettings() {
 	double errorToStop = 0.0;
 	EEPROM.get(setting_addr_e, errorToStop);
 	MotorController1.setErrorToStop(errorToStop);
-	// Load power Setting
+	// Load motor travel distance Setting
 	double maxPower = 0.0;
 	EEPROM.get(setting_addr_p, maxPower);
 	MotorController1.setMaxPower(maxPower);
+	// Load motor travel distance Setting
+	EEPROM.get(setting_addr_j2, m2_home_position_steps);
+	EEPROM.get(setting_addr_j3, m3_home_position_steps);
 
 	// Gripper Motor Settings  // Fixed settings, not loading from EEPROM
-	MotorController2.setHomingParam(m2_home_pin, HIGH, 0);
+	MotorController2.setHomingParam(m2_home_pin, HIGH, m2_home_position_steps);
 	MotorController2.setDefaultVelocity(gripper_velocity);
 	MotorController2.setAcceleration(gripper_accel);
 	MotorController2.setErrorToStop(gripper_error_to_stop);
-	MotorController3.setHomingParam(m3_home_pin, HIGH, 0);
+	MotorController3.setHomingParam(m3_home_pin, HIGH, m3_home_position_steps);
 	MotorController3.setDefaultVelocity(gripper_velocity);
 	MotorController3.setAcceleration(gripper_accel);
 	MotorController3.setErrorToStop(gripper_error_to_stop);
@@ -366,6 +378,8 @@ void resetEEPROM() {
 	EEPROM.put(setting_addr_a, default_accel); // Reset accel Setting
 	EEPROM.put(setting_addr_e, default_error_to_stop); // Reset error-to-stop  Setting
 	EEPROM.put(setting_addr_p, default_power); // Reset power Setting
+	EEPROM.put(setting_addr_j2, default_m2_home_position_steps); // Reset motor travel distance Setting
+	EEPROM.put(setting_addr_j3, default_m3_home_position_steps); // Reset motor travel distance Setting
 }
 
 void loop() {
@@ -543,20 +557,20 @@ void run_command_handle(const char* command) {
 		}
 	}
 
-	if (*command == 'o') {
-		long home_position_step = atol(command + 1);
-		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
-		if (serial_printout_enabled) Serial.println(home_position_step);
-		MotorController1.setHomingParam(0, HIGH, home_position_step);
-		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
-	}
-
 	if (*command == 'v') {
 		double velocity = atof(command + 1);
 		if (serial_printout_enabled) Serial.print(F("Set Velocity: "));
 		if (serial_printout_enabled) Serial.println(velocity);
 		MotorController1.setDefaultVelocity(velocity);
 		EEPROM.put(setting_addr_v, velocity); // Save new settings to EEPROM
+	}
+
+	if (*command == 'e') {
+		double errorToStop = atof(command + 1);
+		if (serial_printout_enabled) Serial.print(F("Set Error-To-Stop: "));
+		if (serial_printout_enabled) Serial.println(errorToStop);
+		MotorController1.setErrorToStop(errorToStop);
+		EEPROM.put(setting_addr_e, errorToStop); // Save new settings to EEPROM
 	}
 
 	if (*command == 'a') {
@@ -567,12 +581,12 @@ void run_command_handle(const char* command) {
 		EEPROM.put(setting_addr_a, accel); // Save new settings to EEPROM
 	}
 
-	if (*command == 'e') {
-		double errorToStop = atof(command + 1);
-		if (serial_printout_enabled) Serial.print(F("Set Error-To-Stop: "));
-		if (serial_printout_enabled) Serial.println(errorToStop);
-		MotorController1.setErrorToStop(errorToStop);
-		EEPROM.put(setting_addr_e, errorToStop); // Save new settings to EEPROM
+	if (*command == 'o') {
+		long home_position_step = atol(command + 1);
+		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
+		if (serial_printout_enabled) Serial.println(home_position_step);
+		MotorController1.setHomingParam(0, HIGH, home_position_step);
+		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
 	}
 
 	if (*command == 'p') {
@@ -590,6 +604,25 @@ void run_command_handle(const char* command) {
 
 	}
 
+	if (*command == 'j') {
+		if (*(command + 1) == '2') {
+			long home_position_steps = atol(command + 2);
+			if (serial_printout_enabled) Serial.print(F("Set Motor M2 Home Position: "));
+			if (serial_printout_enabled) Serial.println(home_position_steps);
+
+			MotorController2.setHomingParam(m2_home_pin, HIGH, home_position_steps);
+			EEPROM.put(setting_addr_j2, home_position_steps); // Save new settings to EEPROM
+		}
+
+		if (*(command + 1) == '3') {
+			long home_position_steps = atol(command + 2);
+			if (serial_printout_enabled) Serial.print(F("Set Motor M3 Home Position: "));
+			if (serial_printout_enabled) Serial.println(home_position_steps);
+
+			MotorController3.setHomingParam(m3_home_pin, HIGH, home_position_steps);
+			EEPROM.put(setting_addr_j3, home_position_steps); // Save new settings to EEPROM
+		}
+	}
 
 	if (*command == 'x') {
 		if (*(command + 1) == '1') {
