@@ -330,7 +330,7 @@ Speed from 0.7mm/s to 0.85mm/s had been tested to be stable and produce good tor
 9. `H` and trigger switch manually to confirm switch is functional.
 10. `H` and allow automatic homing
 11. Measure jaw opening and calculate offset by [opening * 918]
-12. `o[offset value]` j
+12. `o[offset value]` 
 
 
 

@@ -37,7 +37,7 @@
 
  The behavior of the gripper motors are as follows:
  i0 - Retract (Loosen) Gripper Motors (full power)
-	- Both motor will move towards the limit switch with the same speed. 
+	- Both motor will move towards the limit switch with the same speed.
 	- Individually, upon reaching the limit switch, the motor will stop.
 	- If the motion profile is completed before reaching the switch, the retract is failed.
 	- At retract-failed state, user can retry the retract but cannot initiate a tighten.
@@ -45,7 +45,7 @@
  i1 - Extend (Tighten) Gripper Motors (at lower power)
 	- Both motors tightens (away from limit switch) with same motion profile
 		this maintains sync position for the two pins.
-	- Upon one of the motor jamming, the other motor will continue until it is also jammed, 
+	- Upon one of the motor jamming, the other motor will continue until it is also jammed,
 		or stop after distance-difference reach a threshold
 	- If both motor completed their profile before reaching any jam, the extend is failed.
 	- If any motor completed their profile too soon, the extend is failed.
@@ -157,8 +157,7 @@ long m3_home_position_steps = 0;				// 2501.90 steps per mm
 
 const long gripper_max_extend_steps = 117589;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
 const long gripper_min_extend_steps = 50000;	// Minimal amount of steps travelled before extend is considered successful.
-const long gripper_retract_overshoot = 5000;	// Position to aim at when going back to the switch,
-												// this can be zero but slight overshoot make sense.
+
 const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
 const double gripper_accel = 5000;
 const double gripper_error_to_stop = 400.0;
@@ -382,6 +381,31 @@ void resetEEPROM() {
 	EEPROM.put(setting_addr_j3, default_m3_home_position_steps); // Reset motor travel distance Setting
 }
 
+
+void print_gripper_positions(const __FlashStringHelper* message, bool print_only_if_serial_enabled = true) {
+	// Debug function to print M2 and M3 positions
+	// Conditions to not print anything (print_only_if_serial_enabled == True and serial_printout_enabled == False)
+	if (print_only_if_serial_enabled && !serial_printout_enabled) {
+		return;
+	}
+	Serial.print(message);
+	Serial.print(F("M2="));
+	Serial.print(MotorController2.currentPosition());
+	Serial.print(F(" (target="));
+	Serial.print(MotorController2.currentTarget());
+	Serial.print(F(") M3="));
+	Serial.print(MotorController3.currentPosition());
+	Serial.print(F(" (target="));
+	Serial.print(MotorController3.currentTarget());
+	Serial.println(F(")"));
+}
+
+void println_if_serial_enabled(const __FlashStringHelper* message) {
+	if (!serial_printout_enabled) return;
+	Serial.println(message);
+}
+
+
 void loop() {
 	//The main loop implements quasi-time sharing task management.
 	// Higher tasks have higher priority
@@ -477,7 +501,7 @@ void loop() {
 		radio_last_receive_millis = millis();
 		return;
 	}
-	
+
 	// Run Radio anti-freeze
 	if (run_radio_frozen_fix()) return;
 
@@ -672,8 +696,8 @@ void gripper_retract() {
 	}
 	// If motor is homed before. The homing amount is = current position (+ve) + overshoot (+ve)
 	else {
-		MotorController2.home(true, gripper_velocity, MotorController2.currentPosition() + gripper_retract_overshoot);
-		MotorController3.home(true, gripper_velocity, MotorController3.currentPosition() + gripper_retract_overshoot);
+		MotorController2.moveToPosition(0);
+		MotorController3.moveToPosition(0);
 	}
 
 	gripper_state = GRIPPER_Retracting;
@@ -699,86 +723,57 @@ void gripper_extend() {
 // Gripper motor sync stop check. 
 // Returns true if the gripper_state is changed.
 boolean gripper_motor_sync_stop() {
-	//if (serial_printout_enabled) Serial.print(F("Checking Sync."));
+	// gripper_motor_sync_stop() is only in action in either Extending or Retracting state
 	if (!(gripper_state == GRIPPER_Extending || gripper_state == GRIPPER_Retracting)) return false;
 
 	// Retracting
 	if (gripper_state == GRIPPER_Retracting) {
+		// Check exit conditions only when both motors stopped running
 		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
+			// Conditions for unsuccessful retraction (fail to home)
 			if (!MotorController2.isHomed() || !MotorController3.isHomed()) {
 				gripper_state = GRIPPER_RetractFail;
-				if (serial_printout_enabled) {
-					Serial.print(F("Gripper Retract Fail. Motor2 Pos:"));
-					Serial.print(MotorController2.currentPosition());
-					Serial.print(F(" Motor3 Pos:"));
-					Serial.println(MotorController3.currentPosition());
-				}
 				gripper_movement_success = false;
+				print_gripper_positions(F("Gripper Retract Fail (Cannot find Home): "));
 				return true;
 			}
-			else {
-				gripper_state = GRIPPER_Retracted;
-				if (serial_printout_enabled) {
-					Serial.println(F("Gripper Retract Success."));
-				}
-				gripper_movement_success = true;
+			// Condition for unsuccessful retraction (fail to reach near zero or near home)
+			if (!(MotorController2.isTargetReached() && MotorController3.isTargetReached())) {
+				gripper_state = GRIPPER_RetractFail;
+				gripper_movement_success = false;
+				print_gripper_positions(F("Gripper Retract Fail (Target Not Reached): "));
 				return true;
 			}
+
+			// Condition for successful retraction (if no fail condition is reached)
+			gripper_state = GRIPPER_Retracted;
+			println_if_serial_enabled(F("Gripper Retract Success."));
+			gripper_movement_success = true;
+			return true;
 		}
 	};
-	//if (serial_printout_enabled) Serial.print(F("Checking Sync.2"));
 
 	// Extending
 	if (gripper_state == GRIPPER_Extending) {
-
-		// Success if both motors are stopped by jamming
-		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
-			if (serial_printout_enabled) Serial.println(F("Both Gripper Extension Stopped."));
-			
-			if (!MotorController2.isTargetReached() && !MotorController3.isTargetReached()) {
-				if (serial_printout_enabled) {
-					Serial.println(F("Gripper Extend Success. Motor2 Pos:"));
-					Serial.print(MotorController2.currentPosition());
-					Serial.println(F(" Motor3 Pos:"));
-					Serial.println(MotorController3.currentPosition());
-				}
-				gripper_state = GRIPPER_Extended;
-				gripper_movement_success = true;
-			}
-			else {
-				if (serial_printout_enabled) {
-					if (MotorController2.isTargetReached()) {
-						Serial.println(F("Gripper Extend Fail. Motor 2 Reached Target without jam"));
-					}
-					if (MotorController3.isTargetReached()) {
-						Serial.println(F("Gripper Extend Fail. Motor 3 Reached Target without jam"));
-					}
-				}
-				gripper_state = GRIPPER_ExtendFail;
-				gripper_movement_success = false;
-			}
-			return true;
+		// Check exit conditions only when one or both motors stopped running
+		if (MotorController3.isMotorRunning() && MotorController2.isMotorRunning()) {
+			// Short circuit optimization
+			return false;
 		}
-
-		//- If both motor completed their profile before reaching any jam, or stopped too soon the extend is failed.
-		if (!MotorController2.isMotorRunning()){
+		// Check exit conditions when only one motor is running
+		if (MotorController3.isMotorRunning() && !MotorController2.isMotorRunning()) {
+			//- Check if motor stopped too soon.
 			if (MotorController2.currentPosition() < gripper_min_extend_steps) {
-				if (serial_printout_enabled) {
-					Serial.println(F("Gripper Extend Fail. Motor 2 jammed before extending minimum number of steps. Pos:"));
-					Serial.println(MotorController2.currentPosition());
-				}
+				print_gripper_positions(F("Gripper Extend Fail (M2 jam too soon): "));
 				MotorController3.stop();
 				gripper_state = GRIPPER_ExtendFail;
 				gripper_movement_success = false;
 				return true;
 			}
 		}
-		if (!MotorController3.isMotorRunning()) {
+		if (MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
 			if (MotorController3.currentPosition() < gripper_min_extend_steps) {
-				if (serial_printout_enabled) {
-					Serial.println(F("Gripper Extend Fail. Motor 3 jammed before extending minimum number of steps. Pos:"));
-					Serial.println(MotorController3.currentPosition());
-				}
+				print_gripper_positions(F("Gripper Extend Fail (M3 jam too soon): "));
 				MotorController2.stop();
 				gripper_state = GRIPPER_ExtendFail;
 				gripper_movement_success = false;
@@ -786,8 +781,27 @@ boolean gripper_motor_sync_stop() {
 			}
 		}
 
+		// Check exit conditions when both motors stopped running
+		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
+			// Success condition is when neither motor reached target. (jammed)
+			if (!MotorController2.isTargetReached() && !MotorController3.isTargetReached()) {
+				println_if_serial_enabled(F("Gripper Extend Success."));
+				gripper_state = GRIPPER_Extended;
+				gripper_movement_success = true;
+			}
+			else {
+				if (MotorController2.isTargetReached()) {
+					println_if_serial_enabled(F("Gripper Extend Fail. Motor 2 fully extended without jam."));
+				}
+				if (MotorController3.isTargetReached()) {
+					println_if_serial_enabled(F("Gripper Extend Fail. Motor 3 fully extended without jam."));
+				}
+				gripper_state = GRIPPER_ExtendFail;
+				gripper_movement_success = false;
+			}
+			return true;
+		}
 	}
-
 	// Setting Command
 	return false;
 };
@@ -908,7 +922,7 @@ void run_status_light() {
 		//- Long Lit = Communication received in past 1 sec
 		//- Blink = Communication not received for over 1 sec.
 		//- Off = Radio Bad
-		
+
 
 		const unsigned long RADIO_NO_RECEIVE_THRESHOLD = 1000;
 		if (!radio_found) {
