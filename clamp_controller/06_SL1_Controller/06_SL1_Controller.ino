@@ -430,17 +430,17 @@ void loop() {
 
 	// Run Gripper motor
 	if (MotorController2.run()) {
-		Serial.print("Motor 2 Running. Pos:");
-		Serial.print((long)MotorController2.currentPosition());
-		Serial.print(" Power:");
-		Serial.println((int)(MotorController2.currentMotorPowerPercentage() * 100.0));
+		//Serial.print("Motor 2 Running. Pos:");
+		//Serial.print((long)MotorController2.currentPosition());
+		//Serial.print(" Power:");
+		//Serial.println((int)(MotorController2.currentMotorPowerPercentage() * 100.0));
 		//return;
 	}
 	if (MotorController3.run()) {
-		Serial.print("Motor 3 Running. Pos:");
-		Serial.print((long)MotorController3.currentPosition());
-		Serial.print(" Power:");
-		Serial.println((int)(MotorController3.currentMotorPowerPercentage() * 100.0));
+		//Serial.print("Motor 3 Running. Pos:");
+		//Serial.print((long)MotorController3.currentPosition());
+		//Serial.print(" Power:");
+		//Serial.println((int)(MotorController3.currentMotorPowerPercentage() * 100.0));
 		//return;
 	}
 
