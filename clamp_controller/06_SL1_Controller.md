@@ -268,18 +268,6 @@ Refer to the table above to set address.
 
 **During operation:** Refer to \clamp_controller\README.md for assigned address.
 
-### Digital Twin Declaration
-
-SerialCommanderTokyo.py implemented the two following lines to initiate the ClampModel
-
-```
-self.clamp1 = ClampModel('1', 918, 95.0, 94.0, 225.0, 860.0, 1004.0)
-
-self.clamp2 = ClampModel('2', 918, 95.0, 94.0, 225.0, 860.0, 1004.0)
-```
-
-
-
 ### Setting Gripper Home Position
 
 The full travel of the pin is assumed to be 47 mm (117589 steps) by design. The retracted state is when the pin is just retracted completely into the gripper block.  The extended state is when the gearbox touch the top of the gripper block.
@@ -296,24 +284,25 @@ The motor has **28428 steps per rev.**  The main scew has 5mm pitch: **5685.6 st
 
 Homing Switch Position have an approximately 93mm jaw opening. After homing the controller reset to **step -1650** (~-1.8mm). Typical use should then go towards zero (+ve direction) by issuing `g0\n` command.
 
-| Description                          | Controller Position (step) | Controller Position (mm) | Jaw Spacing (mm) |
-| ------------------------------------ | -------------------------- | ------------------------ | ---------------- |
-| Homed Position                       | 0                          | 0                        | 0                |
-| Screw Tip Cross target beam face     | 0                          | 0                        | 0                |
-| Screw tip at 50mm                    |                            |                          |                  |
-| Screw Tip penetrate target beam face |                            |                          |                  |
-| Full travel complete                 |                            |                          |                  |
+| Description                                   | Controller Position (step) | Controller Position (mm) | Jaw Spacing (mm) |
+| --------------------------------------------- | -------------------------- | ------------------------ | ---------------- |
+| Homed Position                                | 0                          | 0                        | 0                |
+| Screw Tip Cross target beam face              | 0                          | 20                       | 0                |
+| Screw tip at 50mm                             |                            |                          |                  |
+| Screw Tip exits target beam face (100mm beam) |                            | 118                      |                  |
+| Beam Face cross beam face (100mm beam)        |                            | 150                      |                  |
+| Full travel complete                          |                            | 250 (+132)               |                  |
 
 ### Speed
 
 Speed from 0.7mm/s to 0.85mm/s had been tested to be stable and produce good torque.
 
-| Speed (mm/s) | v (step/s) | Notes                     |
-| ------------ | ---------- | ------------------------- |
-| 0.85         | 4832.76    | Speed used for tuning PID |
-| 0.80         | 4548.48    |                           |
-| 0.75         | 4264.2     |                           |
-| 0.70         | 3,979.92   | Better Torque             |
+| Speed (mm/s) | v (step/s) | 250mm travel time (s) (min) | Notes                     |
+| ------------ | ---------- | --------------------------- | ------------------------- |
+| 0.85         | 4832.76    | 294s, 4.9min                | Speed used for tuning PID |
+| 0.80         | 4548.48    | 312s, 5.2min                |                           |
+| 0.75         | 4264.2     | 333s, 5.5min                |                           |
+| 0.70         | 3,979.92   | 357s, 5.9min                | Better Torque             |
 
 
 
@@ -325,43 +314,35 @@ Speed from 0.7mm/s to 0.85mm/s had been tested to be stable and produce good tor
 4. `x1 `Reset Settings
 5. Press Reset Button to make settings effective
 6. Attach Battery
-7. `P50` to set power level
-8. `G100` to confirm Encoder / DC motor wiring direction (Flip if necessary)
-9. `H` and trigger switch manually to confirm switch is functional.
-10. `H` and allow automatic homing
-11. Measure jaw opening and calculate offset by [opening * 918]
-12. `o[offset value]` 
+7. `p90` to set power level
+8. `g10000` to confirm Encoder / DC motor wiring direction (Flip if necessary)
+9. `H` and allow automatic homing
+10. `i1` to close gripper and confirm direction is correct
+11. `s` to stop gripper extending
+12. `h` to find gripper home
+13. Measure gripper home opening and calculate offset by [47(mm) - x (mm)] * 2501.9 (step/mm)
+12. `j2[offset value]`  for gripper near controller
+12. `j3[offset value]` for gripper near main motor
 
 
 
-## Implemented Clamps
+## Implemented Devices
 
-| Address | Hardware | Encoder D2 | Encoder D3 | Out 1 | Out 2 |
-| ------- | -------- | ---------- | ---------- | ----- | ----- |
-| 1       | CL3      | Green      | Yellow     | Red   | White |
-| 2       | CL3      | Yellow     | Green      | Red   | White |
-| 3       | CL3M     | Yellow     | Green      | Red   | White |
-| 4       | CL3M     |            |            |       |       |
+| Address | ID   | Hardware Type | M2 Home Gap (mm) | Calibration code | M3 Home Gap (mm) | Calibration code | notes                                  |
+| ------- | ---- | ------------- | ---------------- | ---------------- | ---------------- | ---------------- | -------------------------------------- |
+| 5       | s1   | SL1           | 54               | j2-17513.3       | 54               | j3-17513.3       | M2 and M3 slightly tight               |
+| 6       | s2   | SL1           | 53               | j2-15011.4       | 52.5             | j3-13760.5       |                                        |
+| 7       | s3   | SL1           | 54               | j2-17513.3       | 54               | j3-17513.3       | M2 had problem with retracting (fixed) |
+| 8       | s4   | SL1_G200      | 54               | j2-17513.3       | 54               | j3-17513.3       | M2 slightly tight                      |
 
-| Address | Homed Position - Jaw Width (mm) | Offset x918 (steps) |
-| ------- | ------------------------------- | ------------------- |
-| 1       | 103.2                           | 94737               |
-| 2       | 101.9                           | 93544               |
-| 3       | 100.5                           | 92259               |
-| 4       | 100.7                           | 92442               |
+### Digital Twin Declaration
 
+`clamp_controller\src\controller_instances\10_Commander4Clamps4Screws.py` implemented the two following lines to initiate the `ScrewdriverModel`
 
+```
+self.add_clamp(ScrewdriverModel('s1', 'SL1', '5', 5685.6, 0, -10, 300, 860.0, 1004.0, 2501.9))
+self.add_clamp(ScrewdriverModel('s2', 'SL1', '6', 5685.6, 0, -10, 300, 860.0, 1004.0, 2501.9))
+self.add_clamp(ScrewdriverModel('s3', 'SL1', '7', 5685.6, 0, -10, 300, 860.0, 1004.0, 2501.9))
+self.add_clamp(ScrewdriverModel('s4', 'SL1_G200', '8', 5685.6, 0, -10, 300, 860.0, 1004.0, 2501.9))
+```
 
-### Power Level / Force
-
-A quick test is performed on Clamp #1 with a power supply set at 14.4V (max.10A). This test try to relate the power settings to the amount of output force:
-
-| Power Percentage | Approximate Force (N) |
-| ---------------- | --------------------- |
-| 20               | 450                   |
-| 30               | 750                   |
-| 40               | 1140                  |
-| 50               | 1600                  |
-| 60               | 2030                  |
-
-Test was stopped after 60% due to the fear of destroying the hardware. Deflection of the clamp component is observed at 60%.
