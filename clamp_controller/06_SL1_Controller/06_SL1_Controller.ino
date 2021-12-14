@@ -886,7 +886,7 @@ int get_gripper_state_code() {
 
 byte get_status_code() {
 	byte code = 0;
-	bitWrite(code, 0, MotorController1.isHomed());
+	bitWrite(code, 0, gripper_state != GRIPPER_NotHomed);
 	bitWrite(code, 1, (MotorController1.isMotorRunning()));
 	bitWrite(code, 2, (MotorController1.isDirectionExtend()));
 	return code;
