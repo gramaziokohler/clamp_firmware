@@ -864,24 +864,7 @@ char* get_current_status_string() {
 }
 
 int get_gripper_state_code() {
-	if (gripper_state == GRIPPER_NotHomed) return GRIPPER_NotHomed;
-	if (MotorController2.isMotorRunning() || MotorController3.isMotorRunning()) {
-		if (MotorController2.isDirectionExtend()) {
-			return GRIPPER_Extending;
-		}
-		else {
-			return GRIPPER_Retracting;
-		}
-	}
-	else {
-		if (gripper_movement_success) {
-			if (MotorController2.isDirectionExtend()) return GRIPPER_Extended; else return GRIPPER_Retracted;
-		}
-		else {
-			if (MotorController2.isDirectionExtend()) return GRIPPER_ExtendFail; else return GRIPPER_RetractFail;
-		}
-	}
-
+	return gripper_state;
 }
 
 byte get_status_code() {
