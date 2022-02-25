@@ -211,6 +211,7 @@ Radio Address (char) = DIPValue (uint) + 48 + 1
 | Stop                                | s`\n`                         | Stop all motors immediately                                  |         | s`\n`      |
 | Home                                | h`\n`                         | Reset Main motor encoder position<br />Home Gripper Motors by Retracting |         | h`\n`      |
 | Gripper Pins Movement               | i[0/1]`\n`                    | i0 : Retract Gripper Pins<br />i1 : Extend Gripper Pins      |         | i0`\n`     |
+| Set Current Position                | t[position]`\n`               | Setting current position to given value, no movement.<br />[position] can be any signed long integer<br />Value counted in step |         | t5000`\n`  |
 | Set Velocity (persistent)           | v[velocity]`\n`               | [velocity] can be any signed double<br />Value counted in step/s | 4736    | v2000`\n`  |
 | Set Acceleration (persistent)       | a[accel]`\n`                  | [accel] can be any signed double<br />Value counted in step/s^2 | 10000   | a5000`\n`  |
 | Set error_to_stop (persistent)      | e[error]`\n`                  | [error] can be any signed double<br />Value counted in step  | 400     | e300`\n`   |

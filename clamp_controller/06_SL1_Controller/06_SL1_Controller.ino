@@ -553,10 +553,9 @@ void run_command_handle(const char* command) {
 		gripper_state = GRIPPER_Retracting;
 	}
 
-
 	if (*command == 'g') {
 		long target_position_step = atol(command + 1);
-		if (serial_printout_enabled) Serial.print(F("Goto Position:"));
+		if (serial_printout_enabled) Serial.print(F("Goto Position: "));
 		if (serial_printout_enabled) Serial.println(target_position_step);
 		MotorController1.moveToPosition(target_position_step);
 	}
@@ -566,7 +565,13 @@ void run_command_handle(const char* command) {
 		MotorController1.stop();
 		MotorController2.stop();
 		MotorController3.stop();
+	}
 
+	if (*command == 't') {
+		long target_position_step = atol(command + 1);
+		if (serial_printout_enabled) Serial.print(F("Command Set Current Position to: "));
+		if (serial_printout_enabled) Serial.println(target_position_step);
+		MotorController1.resetEncoderPos(target_position_step);
 	}
 
 	if (*command == 'i') {
@@ -607,7 +612,7 @@ void run_command_handle(const char* command) {
 
 	if (*command == 'o') {
 		long home_position_step = atol(command + 1);
-		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset:"));
+		if (serial_printout_enabled) Serial.print(F("Set Homed Position Offset: "));
 		if (serial_printout_enabled) Serial.println(home_position_step);
 		MotorController1.setHomingParam(0, HIGH, home_position_step);
 		EEPROM.put(setting_addr_o, home_position_step); // Save new settings to EEPROM
