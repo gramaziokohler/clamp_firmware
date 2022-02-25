@@ -548,8 +548,8 @@ void run_command_handle(const char* command) {
 		MotorController1.resetEncoderPos();
 		MotorController2.setMaxPower(gripper_retract_power);
 		MotorController3.setMaxPower(gripper_retract_power);
-		MotorController2.home(true, gripper_velocity, 117500);
-		MotorController3.home(true, gripper_velocity, 117500);
+		MotorController2.home(true, gripper_velocity, 180000);
+		MotorController3.home(true, gripper_velocity, 180000);
 		gripper_state = GRIPPER_Retracting;
 	}
 
