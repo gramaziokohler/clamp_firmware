@@ -139,7 +139,7 @@ class MotorController {
     // Reser Encoder count and current step to zero. This stops all motion and resets target.
     void resetEncoderPos(const double target_position_step = 0) {
         stop();
-        setEncoderPos(int(target_position_step));
+        setEncoderPos(target_position_step);
         _current_position_step = target_position_step;
         _current_target_position_step = target_position_step;
         _target_reached = true;
