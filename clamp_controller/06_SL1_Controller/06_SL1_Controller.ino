@@ -159,8 +159,8 @@ const long gripper_max_extend_steps = 117589;	// Full travel of 47mm (1.75pitch 
 const long gripper_min_extend_steps = 50000;	// Minimal amount of steps travelled before extend is considered successful.
 
 const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
-const double gripper_accel = 5000;
-const double gripper_error_to_stop = 400.0;
+const double gripper_accel = 1000;
+const double gripper_error_to_stop = 2000.0;
 const double gripper_extend_power = 0.75;
 const double gripper_retract_power = 1.0;
 
