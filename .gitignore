@@ -68,3 +68,6 @@ ipch/
 ## Visual Micro cache files directory
 ## 
 __vm/
+esp32cam_controller/multiclient_firmware_latest_driver/esp32-cam/out/
+esp32cam_controller/multiclient_firmware_latest_driver/esp32-cam-rtos/out/
+esp32cam_controller/multiclient_firmware_latest_driver/esp32-cam-rtos-allframes/out/
