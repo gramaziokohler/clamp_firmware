@@ -99,7 +99,7 @@ class MotorController {
     // If homing Pin is set to 0, the controller is assumed to be immediately homed with no switch.
     boolean home(const boolean homeDirectionToNegative, const double homingVelocity, const double maxHomingDistance = 100000.0) {
         // Special Case when homing without switch. The _home_position_step is immediately set.
-        if (_homingSwitchPin == 0) {
+        if  (_homingSwitchPin == 0 || digitalRead(_homingSwitchPin) == _homingSwitchTriggeredState) {
             setEncoderPos(_home_position_step);
             _current_position_step = _home_position_step;
             _target_reached = true;

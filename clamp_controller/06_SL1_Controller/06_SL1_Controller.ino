@@ -114,6 +114,11 @@ const uint8_t m3_encoder2_pin = 18;            // Motor 3 encoder channel 2 (Sch
 const uint8_t m2_home_pin = 39;                 // Limit switch in INPUT_PULLUP Mode (Schematic: MB_SW)
 const uint8_t m3_home_pin = 38;                 // Limit switch in INPUT_PULLUP Mode (Schematic: MC_SW)
 
+//Pins for Manual Gripper Switch
+const uint8_t gripper_btn_ground_pin = A10;         // Configured to be Output LOW (Not drawn in Schematic)
+const uint8_t gripper_btn_extend_pin = A9;          // Switch in INPUT_PULLUP Mode (Not drawn in Schematic)
+const uint8_t gripper_btn_retract_pin = A11;        // Switch in INPUT_PULLUP Mode (Not drawn in Schematic)
+
 //Pins for radio
 const uint8_t radio_ss_pin = 53;                // Hardware SPI Interface
 const uint8_t radio_mosi_pin = 51;              // Hardware SPI Interface
@@ -158,8 +163,10 @@ long m3_home_position_steps = 0;				// 2501.90 steps per mm
 const long gripper_max_extend_steps = 117589;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
 const long gripper_min_extend_steps = 50000;	// Minimal amount of steps travelled before extend is considered successful.
 
+const long gripper_max_out_of_sync_steps = 5000;	// Minimal amount of steps travelled before extend is considered successful.
+
 const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
-const double gripper_accel = 1000;
+const double gripper_accel = 3000;
 const double gripper_error_to_stop = 2000.0;
 const double gripper_extend_power = 0.75;
 const double gripper_retract_power = 1.0;
@@ -240,6 +247,12 @@ void setup() {
 	// Initialize status LED pin
 	pinMode(grn_led_pin, OUTPUT);
 	pinMode(org_led_pin, OUTPUT);
+
+	// Initialize Manual Switch Pin
+	pinMode(gripper_btn_ground_pin, OUTPUT);
+	digitalWrite(gripper_btn_ground_pin, LOW);
+	pinMode(gripper_btn_extend_pin, INPUT_PULLUP);
+	pinMode(gripper_btn_retract_pin, INPUT_PULLUP);
 
 	// Read DPI Switch and set Radio Address
 	unsigned int DIPValue = 0;
@@ -505,9 +518,11 @@ void loop() {
 	// Run Radio anti-freeze
 	if (run_radio_frozen_fix()) return;
 
-	// Run battery report
+	// Run battery monitoring
 	if (run_batt_monitor()) return;
 
+	// Run gripper button monitoring
+	if (run_gripper_button_monitor()) return;
 
 	run_status_light();
 
@@ -813,7 +828,6 @@ boolean gripper_motor_sync_stop() {
 
 // Battery Monitor - To be separated into its own class and file.
 // Return true if battery is checked.
-
 boolean run_batt_monitor() {
 	{
 		const unsigned long MONITOR_PEIROD_MILLIS = 500;
@@ -848,6 +862,80 @@ boolean run_radio_frozen_fix() {
 		}
 	}
 	return false;
+}
+
+// Manual Button Monitoring and Gripper Tightening 
+// The manual gripper funcion will only be activated when the device has no active command.
+// This is a blocking function that will remain in action while the button is held down
+boolean run_gripper_button_monitor() {
+	if (gripper_state == GRIPPER_Extending || gripper_state == GRIPPER_Retracting) return false;
+	if (MotorController1.isMotorRunning()) return false;
+	if (digitalRead(gripper_btn_extend_pin) == HIGH && digitalRead(gripper_btn_retract_pin) == HIGH) return false;
+
+	println_if_serial_enabled(F("Gripper Button Pressed"));
+	delay(5);
+	if (gripper_state == GRIPPER_NotHomed) {
+		// Mode 1 is engaged when the grippers are not homed.
+		// In this mode, sync is not maintained. 
+		// Extension will run both motors as long as button is pressed. .
+		while (digitalRead(gripper_btn_extend_pin) == LOW) {
+			Motor2.setSpeedPercent(-gripper_extend_power);
+			Motor3.setSpeedPercent(-gripper_extend_power);
+		}
+
+		// Retraction will be similar, but will stop when the homing switch is hit.
+		while (digitalRead(gripper_btn_retract_pin) == LOW) {
+			if (!digitalRead(m2_home_pin)) Motor2.setSpeedPercent(1); else {
+				MotorController2.home(true, gripper_velocity, 0);
+				Motor2.stop();
+			}
+			if (!digitalRead(m3_home_pin)) Motor3.setSpeedPercent(1); else {
+				MotorController3.home(true, gripper_velocity, 0);
+				Motor3.stop();
+			}
+			if (digitalRead(m2_home_pin) && digitalRead(m3_home_pin)) {
+				gripper_state = GRIPPER_Extended;
+			}
+		}
+
+	}
+	else {
+		// Mode 2 is synced gripper move, only available if homing is already performed.
+		// Extension will run both motors as long as the lagging motor (more -ve) is not too far away.
+		// Otherwise, only the lagging motor will run.
+		while (digitalRead(gripper_btn_extend_pin) == LOW) {
+			// Motor2 will run if it is not leading too far
+			if (MotorController2.currentPosition() - MotorController3.currentPosition() < gripper_max_out_of_sync_steps) {
+				Motor2.setSpeedPercent(-gripper_extend_power);
+			}
+			else Motor2.stop();
+			// Motor3 will run if it is not leading too far
+			if (MotorController3.currentPosition() - MotorController2.currentPosition() < gripper_max_out_of_sync_steps) {
+				Motor3.setSpeedPercent(-gripper_extend_power);
+			}
+			else Motor3.stop();
+		}
+
+		// Retraction will run both motors as long as the lagging motor (more +ve) is not too far away.
+		// Otherwise, only the lagging motor will run.
+		// the limit switch must also be LOW (not pressed).
+		while (digitalRead(gripper_btn_retract_pin) == LOW) {
+			// Motor2 will run if it is not leading too far
+			if (MotorController3.currentPosition() - MotorController2.currentPosition() < gripper_max_out_of_sync_steps && !digitalRead(m2_home_pin)) {
+				Motor2.setSpeedPercent(1);
+			}
+			else Motor2.stop();
+			// Motor3 will run if it is not leading too far
+			if (MotorController2.currentPosition() - MotorController3.currentPosition() < gripper_max_out_of_sync_steps && !digitalRead(m3_home_pin)) {
+				Motor3.setSpeedPercent(1);
+			}
+			else Motor3.stop();
+		}
+	}
+
+	println_if_serial_enabled(F("Gripper Button Released"));
+	Motor2.stop();
+	Motor3.stop();
 }
 
 // Status Reporting
