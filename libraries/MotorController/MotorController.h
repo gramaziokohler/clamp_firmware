@@ -143,6 +143,7 @@ class MotorController {
         _current_position_step = target_position_step;
         _current_target_position_step = target_position_step;
         _target_reached = true;
+        _homed = true;
     }
 
     // Run returns True if computation is performed
