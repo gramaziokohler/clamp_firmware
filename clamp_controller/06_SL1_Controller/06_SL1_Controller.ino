@@ -163,7 +163,7 @@ long m3_home_position_steps = 0;				// 2501.90 steps per mm
 const long gripper_max_extend_steps = 117589;	// Full travel of 47mm (1.75pitch = 26.86rev) is 117589 steps
 const long gripper_min_extend_steps = 50000;	// Minimal amount of steps travelled before extend is considered successful.
 
-const long gripper_max_out_of_sync_steps = 5000;	// Minimal amount of steps travelled before extend is considered successful.
+const long gripper_max_out_of_sync_steps = 5000;	// Maximal amount of difference (step) between two grippers.
 
 const double gripper_velocity = 4500;			// 5000step/s seems reasonable but occationally fail on tight gripper blocks.
 const double gripper_accel = 3000;
@@ -442,20 +442,7 @@ void loop() {
 
 
 	// Run Gripper motor
-	if (MotorController2.run()) {
-		//Serial.print("Motor 2 Running. Pos:");
-		//Serial.print((long)MotorController2.currentPosition());
-		//Serial.print(" Power:");
-		//Serial.println((int)(MotorController2.currentMotorPowerPercentage() * 100.0));
-		//return;
-	}
-	if (MotorController3.run()) {
-		//Serial.print("Motor 3 Running. Pos:");
-		//Serial.print((long)MotorController3.currentPosition());
-		//Serial.print(" Power:");
-		//Serial.println((int)(MotorController3.currentMotorPowerPercentage() * 100.0));
-		//return;
-	}
+	run_gripper_motor();
 
 	// Run gripper motor sync stop
 	if (gripper_motor_sync_stop()) {
@@ -740,90 +727,119 @@ void gripper_extend() {
 	gripper_sync_stop_countdown = false;
 }
 
+// Runs the gripper motor 
+boolean run_gripper_motor() {
+	MotorController2.run();
+	MotorController3.run();
+}
+
 // Gripper motor sync stop check. 
 // Returns true if the gripper_state is changed.
 boolean gripper_motor_sync_stop() {
 	// gripper_motor_sync_stop() is only in action in either Extending or Retracting state
+	// return false if gripper_state is not one of the two state.
 	if (!(gripper_state == GRIPPER_Extending || gripper_state == GRIPPER_Retracting)) return false;
 
-	// Retracting
-	if (gripper_state == GRIPPER_Retracting) {
-		// Check exit conditions only when both motors stopped running
-		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
-			// Conditions for unsuccessful retraction (fail to home)
-			if (!MotorController2.isHomed() || !MotorController3.isHomed()) {
-				gripper_state = GRIPPER_RetractFail;
-				gripper_movement_success = false;
-				print_gripper_positions(F("Gripper Retract Fail (Cannot find Home): "));
-				return true;
-			}
-			// Condition for unsuccessful retraction (fail to reach near zero or near home)
-			if (!(MotorController2.isTargetReached() && MotorController3.isTargetReached())) {
-				gripper_state = GRIPPER_RetractFail;
-				gripper_movement_success = false;
-				print_gripper_positions(F("Gripper Retract Fail (Target Not Reached): "));
-				return true;
-			}
+	// Exit when two motors are too far out of sync
+	if (abs(MotorController2.currentPosition() - MotorController3.currentPosition()) > gripper_max_extend_steps) {
+		print_gripper_positions(F("Gripper movement stopped caused by out of sync: "));
+		MotorController2.stop();
+		MotorController3.stop();
 
-			// Condition for successful retraction (if no fail condition is reached)
-			gripper_state = GRIPPER_Retracted;
-			println_if_serial_enabled(F("Gripper Retract Success."));
-			gripper_movement_success = true;
-			return true;
-		}
-	};
-
-	// Extending
-	if (gripper_state == GRIPPER_Extending) {
-		// Check exit conditions only when one or both motors stopped running
-		if (MotorController3.isMotorRunning() && MotorController2.isMotorRunning()) {
-			// Short circuit optimization
-			return false;
-		}
-		// Check exit conditions when only one motor is running
-		if (MotorController3.isMotorRunning() && !MotorController2.isMotorRunning()) {
-			//- Check if motor stopped too soon.
-			if (MotorController2.currentPosition() < gripper_min_extend_steps) {
-				print_gripper_positions(F("Gripper Extend Fail (M2 jam too soon): "));
-				MotorController3.stop();
-				gripper_state = GRIPPER_ExtendFail;
-				gripper_movement_success = false;
-				return true;
-			}
-		}
-		if (MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
-			if (MotorController3.currentPosition() < gripper_min_extend_steps) {
-				print_gripper_positions(F("Gripper Extend Fail (M3 jam too soon): "));
-				MotorController2.stop();
-				gripper_state = GRIPPER_ExtendFail;
-				gripper_movement_success = false;
-				return true;
-			}
-		}
-
-		// Check exit conditions when both motors stopped running
-		if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
-			// Success condition is when neither motor reached target. (jammed)
-			if (!MotorController2.isTargetReached() && !MotorController3.isTargetReached()) {
-				println_if_serial_enabled(F("Gripper Extend Success."));
+		// Exit state for GRIPPER_Extending is success if one of the two grippers are far enough.
+		// otherwise state is fail.
+		if (gripper_state == GRIPPER_Extending) {
+			if (MotorController2.currentPosition() > gripper_min_extend_steps || MotorController3.currentPosition() > gripper_min_extend_steps) {
+				println_if_serial_enabled(F("Gripper Extend Success. (Deep enough)"));
 				gripper_state = GRIPPER_Extended;
 				gripper_movement_success = true;
 			}
 			else {
-				if (MotorController2.isTargetReached()) {
-					println_if_serial_enabled(F("Gripper Extend Fail. Motor 2 fully extended without jam."));
-				}
-				if (MotorController3.isTargetReached()) {
-					println_if_serial_enabled(F("Gripper Extend Fail. Motor 3 fully extended without jam."));
-				}
+				println_if_serial_enabled(F("Gripper Extend Fail (Not deep enough)."));
+				gripper_state = GRIPPER_ExtendFail;
+				gripper_movement_success = false;
+			}
+		}
+		// Exit state for GRIPPER_Retracting is always fail if they fell out of sync. 
+		if (gripper_state == GRIPPER_Retracting) {
+			println_if_serial_enabled(F("Gripper Retract Fail. (Out of sync before reaching home)"));
+			gripper_state = GRIPPER_RetractFail;
+			gripper_movement_success = false;
+		}
+
+		return true;
+	}
+
+	// Exit when both motors stopped running
+	if (!MotorController2.isMotorRunning() && !MotorController3.isMotorRunning()) {
+		// Exit state is fail if the resulting gripper is not homed.
+		// This happens in a non-pre-homed retraction that did not reach the switch
+		if (!MotorController2.isHomed() || !MotorController3.isHomed()) {
+			gripper_state = GRIPPER_NotHomed; //Goes back to NotHomed state.
+			gripper_movement_success = false;
+			print_gripper_positions(F("Gripper Retract Fail (Cannot find Home): "));
+			return true;
+		}
+
+		if (gripper_state == GRIPPER_Retracting) {
+			// Exit state for GRIPPER_Retracting is fail if they did not reach target.
+			if (!(MotorController2.isTargetReached() && MotorController3.isTargetReached())) {
+				gripper_state = GRIPPER_RetractFail;
+				gripper_movement_success = false;
+				print_gripper_positions(F("Gripper Retract Fail (Target Not Reached): "));
+			}
+			// Exit state for GRIPPER_Retracting is success if they reached target.
+			else {
+				gripper_state = GRIPPER_Retracted;
+				println_if_serial_enabled(F("Gripper Retract Success."));
+				gripper_movement_success = true;
+			}
+			return true;
+		};
+
+		if (gripper_state == GRIPPER_Extending) {
+			//if (!MotorController2.isTargetReached() && !MotorController3.isTargetReached()) {
+			//	println_if_serial_enabled(F("Gripper Extend Success."));
+			//	gripper_state = GRIPPER_Extended;
+			//	gripper_movement_success = true;
+			//}
+			
+			// Exit state for GRIPPER_Extending is success if they are deep enough.
+			// otherwise is fail.
+			if (MotorController2.currentPosition() > gripper_min_extend_steps || MotorController3.currentPosition() > gripper_min_extend_steps) {
+				println_if_serial_enabled(F("Gripper Extend Success. (Deep enough)"));
+				gripper_state = GRIPPER_Extended;
+				gripper_movement_success = true;
+			}
+			else {
+				println_if_serial_enabled(F("Gripper Extend Fail (Not deep enough)."));
 				gripper_state = GRIPPER_ExtendFail;
 				gripper_movement_success = false;
 			}
 			return true;
 		}
 	}
-	// Setting Command
-	return false;
+
+	// Rare exit condition when GRIPPER_Extending is when one motor is stopped before gripper_min_extend_steps
+	if (gripper_state == GRIPPER_Extending) {
+		if (!MotorController2.isMotorRunning() && MotorController2.currentPosition() < gripper_min_extend_steps) {
+			//- Check if motor stopped too soon.
+			MotorController3.stop();
+			print_gripper_positions(F("Gripper Extend Fail (M2 stopped too soon): "));
+			gripper_state = GRIPPER_ExtendFail;
+			gripper_movement_success = false;
+			return true;
+		}
+		if (!MotorController3.isMotorRunning() && MotorController3.currentPosition() < gripper_min_extend_steps) {
+			print_gripper_positions(F("Gripper Extend Fail (M3 stopped too soon): "));
+			MotorController2.stop();
+			gripper_state = GRIPPER_ExtendFail;
+			gripper_movement_success = false;
+			return true;
+		}
+	}
+	
+	return false; // This means we are not exiting.
 };
 
 // Battery Monitor - To be separated into its own class and file.
