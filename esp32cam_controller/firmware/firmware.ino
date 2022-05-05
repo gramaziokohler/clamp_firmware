@@ -1,8 +1,9 @@
 /****************************************************************************************************************************************************
-    TITLE: HOW TO BUILD A $9 RSTP VIDEO STREAMER: Using The ESP-32 CAM Board || Arduino IDE - DIY #14
-    DESCRIPTION: This sketch creates a video streamer than uses RTSP. You can configure it to either connect to an existing WiFi network or to create
-    a new access point that you can connect to, in order to stream the video feed.
-
+    ESP32 Camera WiFi adapter with MJPEG
+    Version 1.0 by Victor Leung
+    2022-05-05
+    
+    Code adapted from 
     By Frenoy Osburn
     YouTube Video: https://youtu.be/1xZ-0UGiUsY
     BnBe Post: https://www.bitsnblobs.com/rtsp-video-streamer---esp32
@@ -43,6 +44,7 @@ void setup()
 {
   // Start Serial
   Serial.begin(115200);
+  Serial.println("Firmware Version 1.0" );
   
   // Config Camera
   camera_config_t config;
@@ -101,7 +103,7 @@ void setup()
   }
   IPAddress ip;
   ip = WiFi.localIP();
-  Serial.println(F("WiFi connected"));
+  Serial.println(F("WiFi connected."));
   Serial.print("Local IP : ");
   Serial.println(ip);
 
@@ -119,28 +121,29 @@ void loop()
   server.handleClient();
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println(F("WiFi lost"));
+    Serial.println(F("WiFi lost. Attempt to reconnect.."));
     
     digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
     // Attempt to Reconnect to WiFi
 
     unsigned long connection_lost_millis = millis();
     WiFi.disconnect();
-    
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
     {
       delay(500);
       Serial.print(F("."));
       if ((millis() - connection_lost_millis) > 10000) {
-        Serial.print(F("ESP32 restart"));
+        Serial.print(F("."));
+        Serial.println("");
+        Serial.println(F("Wifi reconnection failed. ESP32 will restart."));
         ESP.restart();
       }
     }
     IPAddress ip;
     ip = WiFi.localIP();
     
-    Serial.println(F("WiFi connected"));
+    Serial.println(F("WiFi connected."));
     Serial.print("Local IP : ");
     Serial.println(ip);
   } else {
