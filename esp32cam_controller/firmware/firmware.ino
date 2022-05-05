@@ -30,8 +30,6 @@
 
 #include "wifikeys.h"
 
-//#define ENABLE_OLED //if want use oled ,turn on thi macro
-
 WebServer server(80);
 
 // Set Static IP address (WIFI connection to host)
@@ -39,15 +37,6 @@ WebServer server(80);
 #include "auto_ip.h"
 // Set Gateway IP address (WIFI connection to host)
 IPAddress gateway(192, 168, 1, 1);
-
-#ifdef ENABLE_OLED
-#include "SSD1306.h"
-#define OLED_ADDRESS 0x3c
-#define I2C_SDA 14
-#define I2C_SCL 13
-SSD1306Wire display(OLED_ADDRESS, I2C_SDA, I2C_SCL, GEOMETRY_128_32);
-bool hasDisplay; // we probe for the device at runtime
-#endif
 
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT
@@ -92,6 +81,7 @@ void handle_jpg_stream(void)
       break;
     }
   }
+  Serial.println("Exit handle_jpg_stream()");
 }
 
 void handle_jpg(void)
@@ -129,29 +119,8 @@ void handleNotFound()
 }
 
 
-void lcdMessage(String msg)
-{
-#ifdef ENABLE_OLED
-  if (hasDisplay) {
-    display.clear();
-    display.drawString(128 / 2, 32 / 2, msg);
-    display.display();
-  }
-#endif
-}
-
 void setup()
 {
-#ifdef ENABLE_OLED
-  hasDisplay = display.init();
-  if (hasDisplay) {
-    display.flipScreenVertically();
-    display.setFont(ArialMT_Plain_16);
-    display.setTextAlignment(TEXT_ALIGN_CENTER);
-  }
-#endif
-  lcdMessage("booting");
-
   Serial.begin(115200);
   //while (!Serial);            //wait for serial connection.
 
@@ -196,7 +165,6 @@ void setup()
   ledcAttachPin(FLASH_LED_PIN, FLASH_LED_CHANNEL);
   ledcWrite(FLASH_LED_CHANNEL, 0); // FLASH LED Off
 
-  lcdMessage(String("join ") + ssid);
   WiFi.mode(WIFI_STA);
 
   IPAddress local_IP = ip_address();
@@ -223,9 +191,6 @@ void setup()
   Serial.print("Stream Link: rtsp://");
   Serial.print(ip);
   Serial.println(":8554/mjpeg/1");
-
-
-  lcdMessage(ip.toString());
 
   server.on("/", HTTP_GET, handle_jpg_stream);
   server.on("/jpg", HTTP_GET, handle_jpg);
