@@ -123,11 +123,19 @@ void loop()
     
     digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
     // Attempt to Reconnect to WiFi
+
+    unsigned long connection_lost_millis = millis();
+    WiFi.disconnect();
+    
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
     {
       delay(500);
       Serial.print(F("."));
+      if ((millis() - connection_lost_millis) > 10000) {
+        Serial.print(F("ESP32 restart"));
+        ESP.restart();
+      }
     }
     IPAddress ip;
     ip = WiFi.localIP();
