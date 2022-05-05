@@ -16,11 +16,7 @@
 #include "src/OV2640.h"
 #include <WiFi.h>
 #include <WebServer.h>
-#include <WiFiClient.h>
-
-#include "src/SimStreamer.h"
-#include "src/OV2640Streamer.h"
-#include "src/CRtspSession.h"
+//#include <WiFiClient.h>
 
 #include "wifikeys.h"
 
@@ -43,12 +39,12 @@ IPAddress gateway(192, 168, 1, 1);
 #define WIFI_LED_PIN 33
 OV2640 cam;
 
-
 void setup()
 {
+  // Start Serial
   Serial.begin(115200);
-  //while (!Serial);            //wait for serial connection.
-
+  
+  // Config Camera
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -76,17 +72,17 @@ void setup()
   config.jpeg_quality = 12;
   config.fb_count = 2;
 
+  cam.init(config);
+  
+  // Manually controlled LED
   pinMode(WIFI_LED_PIN, OUTPUT);
   digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
-
-  cam.init(config);
-
   ledcSetup(FLASH_LED_CHANNEL, 5000, 8);
   ledcAttachPin(FLASH_LED_PIN, FLASH_LED_CHANNEL);
   ledcWrite(FLASH_LED_CHANNEL, 0); // FLASH LED Off
 
+  // Define WIFI
   WiFi.mode(WIFI_STA);
-
   IPAddress local_IP = ip_address();
   IPAddress subnet(255, 255, 255, 0);
   IPAddress primaryDNS(8, 8, 8, 8);
@@ -108,9 +104,6 @@ void setup()
   Serial.println(F("WiFi connected"));
   Serial.print("Local IP : ");
   Serial.println(ip);
-  Serial.print("Stream Link: rtsp://");
-  Serial.print(ip);
-  Serial.println(":8554/mjpeg/1");
 
   server.on("/", HTTP_GET, handle_jpg_stream);
   server.on("/jpg", HTTP_GET, handle_jpg);
@@ -119,9 +112,7 @@ void setup()
 
 }
 
-CStreamer *streamer;
-CRtspSession *session;
-WiFiClient client; // FIXME, support multiple clients
+//WiFiClient client; // FIXME, support multiple clients
 
 void loop()
 {
