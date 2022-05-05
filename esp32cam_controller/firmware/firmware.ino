@@ -10,13 +10,7 @@
 
 /********************************************************************************************************************
    Board Settings:
-   Board: "ESP32 Wrover Module"
-   Upload Speed: "921600"
-   Flash Frequency: "80MHz"
-   Flash Mode: "QIO"
-   Partition Scheme: "Hue APP (3MB No OTA/1MB SPIFFS)"
-   Core Debug Level: "None"
-   COM Port: Depends *On Your System
+   Board: "ESP32 AI Thinker Module"
 *********************************************************************************************************************/
 
 #include "src/OV2640.h"
@@ -38,13 +32,8 @@ WebServer server(80);
 // Set Gateway IP address (WIFI connection to host)
 IPAddress gateway(192, 168, 1, 1);
 
-// Select camera model
-//#define CAMERA_MODEL_WROVER_KIT
-//#define CAMERA_MODEL_ESP_EYE
-//#define CAMERA_MODEL_M5STACK_PSRAM
-//#define CAMERA_MODEL_M5STACK_WIDE
+// Define camera model and Pin Out
 #define CAMERA_MODEL_AI_THINKER
-//#define CAMERA_MODEL_M5CAM
 #include "camera_pins.h"
 
 // Camera Flash light and Status LED
@@ -53,70 +42,6 @@ IPAddress gateway(192, 168, 1, 1);
 #define FLASH_LED_BRIGHTNESS 20
 #define WIFI_LED_PIN 33
 OV2640 cam;
-
-void handle_jpg_stream(void)
-{
-  Serial.println("Entered handle_jpg_stream()");
-  ledcWrite(FLASH_LED_CHANNEL, FLASH_LED_BRIGHTNESS); // FLASH LED On
-  WiFiClient client = server.client();
-  String response = "HTTP/1.1 200 OK\r\n";
-  response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
-  server.sendContent(response);
-
-  while (1)
-  {
-    cam.run();
-    if (!client.connected()) {
-      ledcWrite(FLASH_LED_CHANNEL, 0); // FLASH LED Off
-      break;
-    }
-    response = "--frame\r\n";
-    response += "Content-Type: image/jpeg\r\n\r\n";
-    server.sendContent(response);
-
-    client.write((char *)cam.getfb(), cam.getSize());
-    server.sendContent("\r\n");
-    if (!client.connected()) {
-      ledcWrite(FLASH_LED_CHANNEL, 0); // FLASH LED Off
-      break;
-    }
-  }
-  Serial.println("Exit handle_jpg_stream()");
-}
-
-void handle_jpg(void)
-{
-  Serial.println("Entered handle_jpg()");
-  ledcWrite(FLASH_LED_CHANNEL, FLASH_LED_BRIGHTNESS); // FLASH LED On
-  delay(100);
-  WiFiClient client = server.client();
-
-  cam.run();
-  if (!client.connected())
-  {
-    return;
-  }
-  String response = "HTTP/1.1 200 OK\r\n";
-  response += "Content-disposition: inline; filename=capture.jpg\r\n";
-  response += "Content-type: image/jpeg\r\n\r\n";
-  server.sendContent(response);
-  client.write((char *)cam.getfb(), cam.getSize());
-  ledcWrite(FLASH_LED_CHANNEL, 0); // FLASH LED Off
-}
-
-void handleNotFound()
-{
-  Serial.println("Entered handleNotFound()");
-  String message = "Server is running!\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  server.send(200, "text/plain", message);
-}
 
 
 void setup()
@@ -150,11 +75,6 @@ void setup()
   config.frame_size = FRAMESIZE_UXGA; //1600 x 1200
   config.jpeg_quality = 12;
   config.fb_count = 2;
-
-#if defined(CAMERA_MODEL_ESP_EYE)
-  pinMode(13, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
-#endif
 
   pinMode(WIFI_LED_PIN, OUTPUT);
   digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
@@ -208,6 +128,8 @@ void loop()
   server.handleClient();
 
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("WiFi lost"));
+    
     digitalWrite(WIFI_LED_PIN, HIGH); //LED Off
     // Attempt to Reconnect to WiFi
     WiFi.begin(ssid, password);
@@ -218,6 +140,7 @@ void loop()
     }
     IPAddress ip;
     ip = WiFi.localIP();
+    
     Serial.println(F("WiFi connected"));
     Serial.print("Local IP : ");
     Serial.println(ip);
