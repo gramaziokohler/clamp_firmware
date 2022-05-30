@@ -14,6 +14,7 @@
  ?              - Print out status
  g[position]    - move to a given position (step), can be positive or negative value.
  s              - immediately stop
+ t[position]    - set/override curent position (step) without moving
 
  o[offset-pos]	- Set Homed Offset (step) (persistent) (NEW) 
  v[velocity]    - Set Velocity in (step/s) (persistent)
@@ -430,6 +431,12 @@ void run_command_handle(const char* command) {
 		MotorController1.stop();
 	}
 
+	if (*command == 't') {
+		long target_position_step = atol(command + 1);
+		if (serial_printout_enabled) Serial.print(F("Command Set Current Position to: "));
+		if (serial_printout_enabled) Serial.println(target_position_step);
+		MotorController1.resetEncoderPos(target_position_step);
+	}
 	// Setting Command
 
 	if (*command == 'o') {
