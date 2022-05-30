@@ -415,7 +415,7 @@ void run_command_handle(const char* command) {
 
 	if (*command == 'h') {
 		if (serial_printout_enabled) Serial.println(F("Command Home : Homing"));
-		MotorController1.home(true, 1000);
+		MotorController1.home(true, 1500, 200000);
 	}
 
 
