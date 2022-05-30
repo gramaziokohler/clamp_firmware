@@ -61,6 +61,18 @@ Jumpers can be inserted in between the following pins to change its default IP a
 | 192.168.1.103 (Clamp CL3M c3)            | J1   | J1   | J2   | J2   |
 | 192.168.1.104 (Clamp CL3M c4)            |      | J1   | J1   |      |
 
+## Current Consumption
+
+The power consumption when installed on the CL3 clamp with buck converter (14.8V to 5V step down): Measurement is done by powering the device with a lab power supply at 14.8V.
+
+| Device                                   | Current (A) | Estimated Power (W) |
+| ---------------------------------------- | ----------- | ------------------- |
+| CL3 Controller Electronics with Radio on | 0.056       | 0.82                |
+| + with ESP32 CAM                         | 0.1         | 1.48                |
+| + LED on                                 | 0.15        | 2.22                |
+
+
+
 ## Validation Experiments
 
 There are a few slightly different MJPEG video streaming server from :
@@ -71,7 +83,7 @@ There are a few slightly different MJPEG video streaming server from :
 
 The one from **bnbe-club** is the only one that works with OpenCV marker detection. The reason is not known. However it supports only one HTTP client at a time.
 
-The other two controller from **arkhipenko** supports multiple clients, I can view streaming from multiple browser windows and also from OpenCV. However the marker tracking does not work.
+The other two controller from **arkhipenko** supports multiple clients, I can view streaming from multiple browser windows and also from OpenCV. However the marker tracking does not work. The reason is not known. 
 
 ## Firmware Configuration
 
